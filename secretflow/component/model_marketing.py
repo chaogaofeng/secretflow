@@ -190,8 +190,8 @@ def ss_compare_eval_fn(
     model_df = rule_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint, path='tmpc/model/params/?type=qualified_suppliers')
     print(model_df)
 
-    def save_ori_file(df, path, input_key):
-        df = df[input_key]
+    def save_ori_file(df, path, features):
+        df = df[features]
         df.to_csv(path, index=False)
 
     data_output_csv_filename =os.path.join(ctx.data_dir, f"{data_output}.csv")
