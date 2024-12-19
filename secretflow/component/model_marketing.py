@@ -187,7 +187,7 @@ def ss_compare_eval_fn(
     order_df = data_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=data_input_endpoint, path='mpc/data/list/?type=order')
     print(order_df)
     print(f"读取模型规则数据 {input_path[rule_party]}")
-    model_df = rule_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=data_input_endpoint, path='tmpc/model/params/?type=qualified_suppliers')
+    model_df = rule_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint, path='tmpc/model/params/?type=qualified_suppliers')
     print(model_df)
 
     def save_ori_file(df, path, input_key):
@@ -200,6 +200,12 @@ def ss_compare_eval_fn(
     rule_output_csv_filename =os.path.join(ctx.data_dir, f"{rule_output}.csv")
     print(f"写入rule输出文件 {rule_output_csv_filename}")
     wait(rule_pyu(save_ori_file)(model_df, rule_output_csv_filename, rule_input_features))
+
+    imeta = IndividualTable()
+    assert data_input.meta.Unpack(imeta)
+    name_types = []
+    for i, t in zip(list(imeta.schema.ids), list(imeta.schema.id_types)):
+        name_types[i] = t
 
     print("输出结果")
     data_output_db = DistData(
@@ -215,6 +221,10 @@ def ss_compare_eval_fn(
         ],
     )
     data_output_meta = IndividualTable(
+        schema=TableSchema(
+            label_types=[name_types[feature] for feature in data_input_features if feature in name_types],
+            labels=[name_types[feature] for feature in data_input_features if feature in name_types],
+        )
     )
     data_output_db.meta.Pack(data_output_meta)
 
@@ -230,7 +240,12 @@ def ss_compare_eval_fn(
             ),
         ],
     )
+
     rule_output_meta = IndividualTable(
+        schema=TableSchema(
+            label_types=[name_types[feature] for feature in data_input_features if feature in name_types],
+            labels=[name_types[feature] for feature in data_input_features if feature in name_types],
+        )
     )
     rule_output_db.meta.Pack(rule_output_meta)
 
