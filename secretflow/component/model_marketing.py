@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from secretflow import PYU, wait, SPU
 from secretflow.component.component import (
     Component,
@@ -26,13 +27,6 @@ marketing_comp = Component(
     domain="user",
     version="0.0.1",
     desc="""marketing model rule calculation""",
-)
-
-marketing_comp.party_attr(
-    name="task_id",
-    desc="task id of the marketing model",
-    is_list=False,
-    is_optional=False,
 )
 
 marketing_comp.party_attr(
@@ -96,6 +90,7 @@ marketing_comp.io(
     types=[DistDataType.INDIVIDUAL_TABLE],
 )
 
+
 @marketing_comp.eval_fn
 def ss_compare_eval_fn(
         *,
@@ -155,7 +150,7 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
-    def read_csv(filepath, endpoint_key, path='mpc/data/list/?type=invoice'):
+    def read_endpoint(filepath, endpoint_key, path):
         import pandas as pd
         import requests
         try:
@@ -181,25 +176,63 @@ def ss_compare_eval_fn(
         return pd.DataFrame(data)
 
     print(f"读取供应商数据 {input_path[data_party]}")
-    supplier_df = data_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=data_input_endpoint, path='mpc/data/list/?type=supplier')
-    print(supplier_df)
+    supplier_df = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
+                                          path='mpc/data/list/?type=supplier')
+    print(f"读取供应商数据成功 {len(supplier_df)}")
+
     print(f"读取订单数据 {input_path[data_party]}")
-    order_df = data_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=data_input_endpoint, path='mpc/data/list/?type=order')
-    print(order_df)
+    order_df = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
+                                       path='mpc/data/list/?type=order')
+    print(f"读取订单数据成功 {len(order_df)}")
+
     print(f"读取模型规则数据 {input_path[rule_party]}")
-    model_df = rule_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint, path='tmpc/model/params/?type=qualified_suppliers')
-    print(model_df)
+    model_df = rule_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint,
+                                       path='tmpc/model/params/?type=qualified_suppliers')
+    print(f"读取模型规则数据成功 {len(model_df)}")
+
+    def process_order(df, months=12):
+        from datetime import datetime
+
+        print(f"预处理订单数据")
+
+        df["订单日期"] = pd.to_datetime(df["订单日期"], format="%Y/%m/%d")
+
+        current_date = pd.Timestamp(datetime.now().strftime("%Y/%m/%d"))
+        start_date = current_date - pd.DateOffset(months=months)
+
+        df_recent = df[(df["订单日期"] >= start_date) & (df["订单日期"] <= current_date)]
+
+        # 按供应商分组计算累计金额
+        processed_df = df_recent.groupby("供应商名称")["订单含税金额"].sum().reset_index()
+        processed_df.rename(columns={"订单含税金额": f"近{months}个月累计订单金额"}, inplace=True)
+
+        print(f"预处理订单数据成功 {len(processed_df)}")
+        return processed_df
+
+    def process_model(order_df, supplier_df, model_df):
+        order_df_processed = process_order(order_df, months=model_df)
+        # supplier_df_processed = process_supplier(supplier_df, years=3, score=70)
+        df = supplier_df.merge(order_df_processed, on="供应商名称")
+        df["是否准入"] = df.apply(lambda x: "是" if (
+                    x["合作时长"] >= 3 and x["评分"] >= 70 and x[f"近{model_df}个月累计订单金额"] > 200) else "否",
+                                  axis=1)
+        return df
+
+    # print(f"处理数据")
+    # result_df = spu(process_model)(order_df, supplier_df, model_df)
+    # print(f"处理数据成功 {len(result_df)}")
+    result_df = order_df
 
     def save_ori_file(df, path, features):
         df = df[features]
         df.to_csv(path, index=False)
 
-    data_output_csv_filename =os.path.join(ctx.data_dir, f"{data_output}.csv")
-    print(f"写入data输出文件 {data_output_csv_filename}")
-    wait(data_pyu(save_ori_file)(supplier_df, data_output_csv_filename, data_input_features))
-    rule_output_csv_filename =os.path.join(ctx.data_dir, f"{rule_output}.csv")
-    print(f"写入rule输出文件 {rule_output_csv_filename}")
-    wait(rule_pyu(save_ori_file)(model_df, rule_output_csv_filename, rule_input_features))
+    data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
+    print(f"data写入输出文件 {data_output_csv_filename}")
+    wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_features))
+    rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
+    print(f"rule写入输出文件 {rule_output_csv_filename}")
+    wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_features))
 
     imeta = IndividualTable()
     assert data_input.meta.Unpack(imeta)
