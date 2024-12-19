@@ -29,6 +29,13 @@ monitoring_comp = Component(
     desc="""monitoring model rule calculation""",
 )
 
+monitoring_comp.str_attr(
+    name="task_id",
+    desc="task id of the model.",
+    is_list=False,
+    is_optional=False,
+)
+
 monitoring_comp.party_attr(
     name="receiver_parties",
     desc="Party names of receiver for result, all party will be receivers default.",

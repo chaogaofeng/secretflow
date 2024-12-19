@@ -29,6 +29,13 @@ marketing_comp = Component(
     desc="""marketing model rule calculation""",
 )
 
+marketing_comp.str_attr(
+    name="task_id",
+    desc="task id of the model.",
+    is_list=False,
+    is_optional=False,
+)
+
 marketing_comp.party_attr(
     name="receiver_parties",
     desc="Party names of receiver for result, all party will be receivers default.",
@@ -51,7 +58,7 @@ marketing_comp.io(
         TableColParam(
             name="features",
             desc="Column(s) used to output.",
-            col_min_cnt_inclusive=1,
+            # col_min_cnt_inclusive=1,
         ),
     ],
 )
@@ -71,7 +78,7 @@ marketing_comp.io(
         TableColParam(
             name="features",
             desc="Column(s) used to output.",
-            col_min_cnt_inclusive=1,
+            # col_min_cnt_inclusive=1,
         ),
     ],
 )
