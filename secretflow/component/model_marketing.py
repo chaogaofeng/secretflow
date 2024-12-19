@@ -115,16 +115,11 @@ def ss_compare_eval_fn(
     data_party = list(data_path_info.keys())[0]
     rule_path_info = extract_data_infos(rule_input)
     rule_party = list(rule_path_info.keys())[0]
-    result_party_infos = []
-    if data_party in receiver_parties:
-        result_party_infos.append(data_path_info)
-    if rule_party in receiver_parties:
-        result_party_infos.append(rule_path_info)
     print(f"data_party: {data_party}")
     print(f"rule_party: {rule_party}")
     print(f"data_party output: {data_output}")
     print(f"rule_party output: {rule_output}")
-    print(f"result_party_infos: {len(result_party_infos) == len(receiver_parties)}")
+    print(f"receiver_parties: {receiver_parties})")
 
     input_path = {
         data_party: os.path.join(
@@ -159,6 +154,7 @@ def ss_compare_eval_fn(
             df = pd.read_csv(filepath, encoding="gbk")
 
         data = []
+        endpoint = ""
         if endpoint_key not in df.columns:
             raise CompEvalError(f"{endpoint_key} is not in input file")
         else:
@@ -166,27 +162,30 @@ def ss_compare_eval_fn(
                 endpoint = row[endpoint_key]
                 url = f"{endpoint}/{path}"
                 print(f"请求url: {url}")
-                response = requests.get(url)
-                if response.status_code == 200:
-                    json_data = response.json()
-                    if json_data.get("success"):
-                        data.extend(json_data.get("data", []))
-                else:
-                    raise CompEvalError(f"请求endpoint: {url} 失败")
-        return pd.DataFrame(data)
+                try:
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        json_data = response.json()
+                        if json_data.get("success"):
+                            data.extend(json_data.get("data", []))
+                    else:
+                        raise CompEvalError(f"请求endpoint: {url} 失败, code {response.status_code}")
+                except Exception as e:
+                    raise CompEvalError(f"请求endpoint: {url} 失败, {e}")
+        return pd.DataFrame(data), endpoint
 
     print(f"读取订单数据 {input_path[data_party]}")
-    order_df = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
+    order_df, data_endpoint = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
                                        path='mpc/data/list/?type=order')
     print(f"读取订单数据成功 {len(order_df)}")
 
     print(f"读取供应商数据 {input_path[data_party]}")
-    supplier_df = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
+    supplier_df, data_endpoint = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
                                           path='mpc/data/list/?type=supplier')
     print(f"读取供应商数据成功 {len(supplier_df)}")
 
     print(f"读取模型数据 {input_path[rule_party]}")
-    model_df = rule_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint,
+    model_df, rule_endpoint = rule_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint,
                                        path='tmpc/model/params/?type=qualified_suppliers')
     print(f"读取模型数据成功 {len(model_df)}")
 
@@ -245,16 +244,34 @@ def ss_compare_eval_fn(
     # print(f"处理数据成功 {len(result_df)}")
     result_df = order_df
 
-    def save_ori_file(df, path, features):
+    def save_ori_file(df, path, features, endpoint):
         df = df[features]
         df.to_csv(path, index=False)
+        if endpoint:
+            import requests
+            try:
+                payload = {
+                    'task_id': task_id,
+                    "params": df.to_json(orient="records")
+                }
+                response = requests.post(endpoint, json=payload)
+                if response.status_code == 200:
+                    print(f"请求endpoint: {endpoint} 成功")
+                else:
+                    raise CompEvalError(f"请求endpoint: {endpoint} 失败, code {response.status_code}")
+            except Exception as e:
+                raise CompEvalError(f"请求endpoint: {endpoint} 失败, {e}")
 
-    data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
-    print(f"data写入输出文件 {data_output_csv_filename}")
-    wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_features))
-    rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
-    print(f"rule写入输出文件 {rule_output_csv_filename}")
-    wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_features))
+    if data_party in receiver_parties:
+        data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
+        print(f"data写入输出文件 {data_output_csv_filename}")
+        wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_features, f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
+        print(f"data写入输出文件成功 {data_output_csv_filename}")
+    if rule_party in receiver_parties:
+        rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
+        print(f"rule写入输出文件 {rule_output_csv_filename}")
+        wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_features, f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
+        print(f"rule写入输出文件成功 {rule_output_csv_filename}")
 
     imeta = IndividualTable()
     assert data_input.meta.Unpack(imeta)
