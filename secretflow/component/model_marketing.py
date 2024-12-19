@@ -1,10 +1,4 @@
-import copy
-import logging
 import os
-from typing import Dict
-
-from pandas import read_csv
-
 from secretflow import PYU, wait, SPU
 from secretflow.component.component import (
     Component,
@@ -12,8 +6,6 @@ from secretflow.component.component import (
     TableColParam,
 )
 from secretflow.component.core import download_files
-from secretflow.component.dataframe import StreamingReader, StreamingWriter
-from secretflow.component.storage import ComponentStorage
 
 from secretflow.error_system import CompEvalError
 
@@ -30,7 +22,7 @@ from secretflow.spec.v1.data_pb2 import (
 )
 
 marketing_comp = Component(
-    "marketing",
+    name="marketing",
     domain="user",
     version="0.0.1",
     desc="""marketing model rule calculation""",
@@ -63,8 +55,8 @@ marketing_comp.io(
             col_max_cnt_inclusive=1
         ),
         TableColParam(
-            name="key",
-            desc="Column(s) used to callback.",
+            name="features",
+            desc="Column(s) used to output.",
             col_min_cnt_inclusive=1,
         ),
     ],
@@ -83,8 +75,8 @@ marketing_comp.io(
             col_max_cnt_inclusive=1
         ),
         TableColParam(
-            name="key",
-            desc="Column(s) used to callback.",
+            name="features",
+            desc="Column(s) used to output.",
             col_min_cnt_inclusive=1,
         ),
     ],
@@ -112,10 +104,10 @@ def ss_compare_eval_fn(
         receiver_parties,
         data_input,
         data_input_endpoint,
-        data_input_key,
+        data_input_features,
         rule_input,
         rule_input_endpoint,
-        rule_input_key,
+        rule_input_features,
         data_output,
         rule_output
 ):
@@ -163,7 +155,7 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
-    def read_input(filepath, endpoint_key, path='mpc/data/list/?type=invoice'):
+    def read_csv(filepath, endpoint_key, path='mpc/data/list/?type=invoice'):
         import pandas as pd
         import requests
         try:
@@ -188,10 +180,15 @@ def ss_compare_eval_fn(
                     raise CompEvalError(f"请求endpoint: {url} 失败")
         return pd.DataFrame(data)
 
-    print(f"读取data输入文件 {input_path[data_party]}")
-    invoice_df = data_pyu(read_input)(input_path[data_party], data_input_endpoint)
-    print(f"读取rule输入文件 {input_path[rule_party]}")
-    model_df = rule_pyu(read_input)(input_path[rule_party, rule_input_endpoint])
+    print(f"读取供应商数据 {input_path[data_party]}")
+    supplier_df = data_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=data_input_endpoint, path='mpc/data/list/?type=supplier')
+    print(supplier_df)
+    print(f"读取订单数据 {input_path[data_party]}")
+    order_df = data_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=data_input_endpoint, path='mpc/data/list/?type=order')
+    print(order_df)
+    print(f"读取模型规则数据 {input_path[rule_party]}")
+    model_df = rule_pyu(read_csv)(filepath=input_path[data_party], endpoint_key=data_input_endpoint, path='tmpc/model/params/?type=qualified_suppliers')
+    print(model_df)
 
     def save_ori_file(df, path, input_key):
         df = df[input_key]
@@ -199,10 +196,10 @@ def ss_compare_eval_fn(
 
     data_output_csv_filename =os.path.join(ctx.data_dir, f"{data_output}.csv")
     print(f"写入data输出文件 {data_output_csv_filename}")
-    wait(data_pyu(save_ori_file)(invoice_df, data_output_csv_filename, data_input_key))
+    wait(data_pyu(save_ori_file)(supplier_df, data_output_csv_filename, data_input_features))
     rule_output_csv_filename =os.path.join(ctx.data_dir, f"{rule_output}.csv")
     print(f"写入rule输出文件 {rule_output_csv_filename}")
-    wait(rule_pyu(save_ori_file)(model_df, rule_output_csv_filename, rule_input_key))
+    wait(rule_pyu(save_ori_file)(model_df, rule_output_csv_filename, rule_input_features))
 
     print("输出结果")
     data_output_db = DistData(
@@ -217,6 +214,10 @@ def ss_compare_eval_fn(
             ),
         ],
     )
+    data_output_meta = IndividualTable(
+    )
+    data_output_db.meta.Pack(data_output_meta)
+
     rule_output_db = DistData(
         name=rule_output,
         type=str(DistDataType.INDIVIDUAL_TABLE),
@@ -229,5 +230,8 @@ def ss_compare_eval_fn(
             ),
         ],
     )
+    rule_output_meta = IndividualTable(
+    )
+    rule_output_db.meta.Pack(rule_output_meta)
 
     return {"data_output": data_output_db, "rule_output": rule_output_db}
