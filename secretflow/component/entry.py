@@ -22,9 +22,11 @@ from secretflow.spec.v1.evaluation_pb2 import NodeEvalParam, NodeEvalResult
 from secretflow.version import build_message
 
 from .core.entry import comp_eval as core_comp_eval
+from .model_marketing import marketing_comp
 
 ALL_COMPONENTS = [
     psi_comp,
+    marketing_comp,
 ]
 
 COMP_LIST_NAME = "secretflow"
