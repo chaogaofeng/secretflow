@@ -23,10 +23,12 @@ from secretflow.version import build_message
 
 from .core.entry import comp_eval as core_comp_eval
 from .model_marketing import marketing_comp
+from .model_monitoring import monitoring_comp
 
 ALL_COMPONENTS = [
     psi_comp,
     marketing_comp,
+    monitoring_comp,
 ]
 
 COMP_LIST_NAME = "secretflow"
