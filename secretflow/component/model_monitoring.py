@@ -22,21 +22,21 @@ from secretflow.spec.v1.data_pb2 import (
     TableSchema,
 )
 
-marketing_comp = Component(
-    name="marketing",
+monitoring_comp = Component(
+    name="monitoring",
     domain="user",
     version="0.0.1",
-    desc="""marketing model rule calculation""",
+    desc="""monitoring model rule calculation""",
 )
 
-marketing_comp.party_attr(
+monitoring_comp.party_attr(
     name="receiver_parties",
     desc="Party names of receiver for result, all party will be receivers default.",
     list_min_length_inclusive=0,
     list_max_length_inclusive=2,
 )
 
-marketing_comp.io(
+monitoring_comp.io(
     io_type=IoType.INPUT,
     name="data_input",
     desc="Individual table for data provider",
@@ -56,7 +56,7 @@ marketing_comp.io(
     ],
 )
 
-marketing_comp.io(
+monitoring_comp.io(
     io_type=IoType.INPUT,
     name="rule_input",
     desc="Individual table for rule provider",
@@ -76,14 +76,14 @@ marketing_comp.io(
     ],
 )
 
-marketing_comp.io(
+monitoring_comp.io(
     io_type=IoType.OUTPUT,
     name="data_output",
     desc="Output for data",
     types=[DistDataType.INDIVIDUAL_TABLE],
 )
 
-marketing_comp.io(
+monitoring_comp.io(
     io_type=IoType.OUTPUT,
     name="rule_output",
     desc="Output for data",
@@ -91,7 +91,7 @@ marketing_comp.io(
 )
 
 
-@marketing_comp.eval_fn
+@monitoring_comp.eval_fn
 def ss_compare_eval_fn(
         *,
         ctx,
@@ -215,27 +215,26 @@ def ss_compare_eval_fn(
         if 'supplier_name' not in order_df.columns:
             raise CompEvalError("supplier_name is not in order file")
 
-        # if "is_qualified" not in supplier_df.columns:
-        #     raise CompEvalError("is_qualified is not in supplier file")
-        if 'cooperation_duration' not in supplier_df.columns:
-            raise CompEvalError("cooperation_duration is not in supplier file")
+
+        # if 'cooperation_duration' not in supplier_df.columns:
+        #     raise CompEvalError("cooperation_duration is not in supplier file")
         if 'latest_rating' not in supplier_df.columns:
             raise CompEvalError("latest_rating is not in supplier file")
 
-        if 'cooperation_duration' not in model_df.columns:
-            raise CompEvalError("cooperation_duration is not in model file")
+        # if 'cooperation_duration' not in model_df.columns:
+        #     raise CompEvalError("cooperation_duration is not in model file")
         if 'latest_rating' not in model_df.columns:
             raise CompEvalError("latest_rating is not in model file")
         if 'total_order_amount' not in model_df.columns:
             raise CompEvalError("total_order_amount is not in model file")
 
-        cooperation_duration = model_df.iloc[0]["cooperation_duration"]
+        # cooperation_duration = model_df.iloc[0]["cooperation_duration"]
         latest_rating = model_df.iloc[0]["latest_rating"]
         total_order_amount = model_df.iloc[0]["total_order_amount"]
         order_df_processed = process_order(order_df, months=model_df)
         df = supplier_df.merge(order_df_processed, on="supplier_name")
         df["is_qualified"] = df.apply(lambda x: 'true' if (
-                    x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and x[f"total_order_amount"] > total_order_amount) else "false",
+                    x["latest_rating"] >= latest_rating or x[f"total_order_amount"] > total_order_amount) else "false",
                                   axis=1)
         return df
 
