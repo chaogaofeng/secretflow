@@ -175,46 +175,68 @@ def ss_compare_eval_fn(
                     raise CompEvalError(f"请求endpoint: {url} 失败")
         return pd.DataFrame(data)
 
-    print(f"读取供应商数据 {input_path[data_party]}")
-    supplier_df = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
-                                          path='mpc/data/list/?type=supplier')
-    print(f"读取供应商数据成功 {len(supplier_df)}")
-
     print(f"读取订单数据 {input_path[data_party]}")
     order_df = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
                                        path='mpc/data/list/?type=order')
     print(f"读取订单数据成功 {len(order_df)}")
 
-    print(f"读取模型规则数据 {input_path[rule_party]}")
+    print(f"读取供应商数据 {input_path[data_party]}")
+    supplier_df = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
+                                          path='mpc/data/list/?type=supplier')
+    print(f"读取供应商数据成功 {len(supplier_df)}")
+
+    print(f"读取模型数据 {input_path[rule_party]}")
     model_df = rule_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint,
                                        path='tmpc/model/params/?type=qualified_suppliers')
-    print(f"读取模型规则数据成功 {len(model_df)}")
+    print(f"读取模型数据成功 {len(model_df)}")
 
     def process_order(df, months=12):
-        from datetime import datetime
-
         print(f"预处理订单数据")
 
-        df["订单日期"] = pd.to_datetime(df["订单日期"], format="%Y/%m/%d")
+        df["order_date"] = pd.to_datetime(df["order_date"], format="%Y/%m/%d")
 
+        from datetime import datetime
         current_date = pd.Timestamp(datetime.now().strftime("%Y/%m/%d"))
         start_date = current_date - pd.DateOffset(months=months)
 
-        df_recent = df[(df["订单日期"] >= start_date) & (df["订单日期"] <= current_date)]
+        df_recent = df[(df["order_date"] >= start_date) & (df["order_date"] <= current_date)]
 
         # 按供应商分组计算累计金额
-        processed_df = df_recent.groupby("供应商名称")["订单含税金额"].sum().reset_index()
-        processed_df.rename(columns={"订单含税金额": f"近{months}个月累计订单金额"}, inplace=True)
+        processed_df = df_recent.groupby("supplier_name")["order_amount_tax_included"].sum().reset_index()
+        processed_df.rename(columns={"order_amount_tax_included": f"total_order_amount"}, inplace=True)
 
         print(f"预处理订单数据成功 {len(processed_df)}")
         return processed_df
 
     def process_model(order_df, supplier_df, model_df):
+        if 'order_date' not in order_df.columns:
+            raise CompEvalError("order_date is not in order file")
+        if 'order_amount_tax_included' not in order_df.columns:
+            raise CompEvalError("order_amount_tax_included is not in order file")
+        if 'supplier_name' not in order_df.columns:
+            raise CompEvalError("supplier_name is not in order file")
+
+        if "is_qualified" not in supplier_df.columns:
+            raise CompEvalError("is_qualified is not in supplier file")
+        if 'cooperation_duration' not in supplier_df.columns:
+            raise CompEvalError("cooperation_duration is not in supplier file")
+        if 'latest_rating' not in supplier_df.columns:
+            raise CompEvalError("latest_rating is not in supplier file")
+
+        if 'cooperation_duration' not in model_df.columns:
+            raise CompEvalError("cooperation_duration is not in model file")
+        if 'latest_rating' not in model_df.columns:
+            raise CompEvalError("latest_rating is not in model file")
+        if 'total_order_amount' not in model_df.columns:
+            raise CompEvalError("total_order_amount is not in model file")
+
+        cooperation_duration = model_df.iloc[0]["cooperation_duration"]
+        latest_rating = model_df.iloc[0]["latest_rating"]
+        total_order_amount = model_df.iloc[0]["total_order_amount"]
         order_df_processed = process_order(order_df, months=model_df)
-        # supplier_df_processed = process_supplier(supplier_df, years=3, score=70)
-        df = supplier_df.merge(order_df_processed, on="供应商名称")
-        df["是否准入"] = df.apply(lambda x: "是" if (
-                    x["合作时长"] >= 3 and x["评分"] >= 70 and x[f"近{model_df}个月累计订单金额"] > 200) else "否",
+        df = supplier_df.merge(order_df_processed, on="supplier_name")
+        df["is_qualified"] = df.apply(lambda x: 'true' if (
+                    x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and x[f"total_order_amount"] > total_order_amount) else "falses",
                                   axis=1)
         return df
 
