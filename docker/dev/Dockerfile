@@ -36,27 +36,11 @@ LABEL kuscia.secretflow.config-templates=$config_templates
 ARG deploy_templates=""
 LABEL kuscia.secretflow.deploy-templates=$deploy_templates
 
-# 将 comp_list.json 和 translation.json 拷贝到镜像中
-COPY comp_list.json /root/comp_list.json
-COPY translation.json /root/translation.json
+ARG comp_list=""
+LABEL kuscia.secretflow.comp_list=$comp_list
 
-# 读取 comp_list.json 并设置 LABEL
-RUN comp_list=$(cat /root/comp_list.json) && \
-    echo "kuscia.secretflow.comp_list=$comp_list" > /root/comp_list_label
-
-# 读取 translation.json 并设置 LABEL
-RUN translation=$(cat /root/translation.json) && \
-    echo "kuscia.secretflow.translation=$translation" > /root/translation_label
-
-# 将 LABEL 内容静态写入
-LABEL kuscia.secretflow.comp_list="$(cat /root/comp_list_label)"
-LABEL kuscia.secretflow.translation="$(cat /root/translation_label)"
-
-#ARG comp_list=""
-#LABEL kuscia.secretflow.comp_list=$comp_list
-#
-#ARG translation=""
-#LABEL kuscia.secretflow.translation=$translation
+ARG translation=""
+LABEL kuscia.secretflow.translation=$translation
 
 # run as root for now
 WORKDIR /root
