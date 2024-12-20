@@ -220,12 +220,17 @@ def ss_compare_eval_fn(
     def process_order(df, months=12):
         logging.info(f"处理订单数据")
 
-        df["order_date"] = pd.to_datetime(df["order_date"], format="%Y/%m/%d")
+        # 转换日期列
+        df["order_date"] = pd.to_datetime(df["order_date"])
 
-        from datetime import datetime
-        current_date = pd.Timestamp(datetime.now().strftime("%Y/%m/%d"))
+        # 获取当前日期，并计算开始日期
+        current_date = pd.Timestamp.now().normalize()
         start_date = current_date - pd.DateOffset(months=months)
 
+        # 确保金额列是数值类型
+        df["order_amount_tax_included"] = pd.to_numeric(df["order_amount_tax_included"], errors="coerce")
+
+        # 筛选最近的订单
         df_recent = df[(df["order_date"] >= start_date) & (df["order_date"] <= current_date)]
 
         # 按供应商分组计算累计金额
