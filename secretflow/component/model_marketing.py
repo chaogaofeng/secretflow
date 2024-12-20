@@ -157,6 +157,15 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
+    def read_data(filepath):
+        logging(f"读取文件{filepath} ...")
+        try:
+            df = pd.read_csv(filepath, encoding="utf-8")
+        except:
+            df = pd.read_csv(filepath, encoding="gbk")
+        logging(f"读取文件{filepath} 成功。 {df}")
+        return df
+
     def read_endpoint(url):
         items = []
         logging.info(f"网络请求 {url} ...")
@@ -164,7 +173,7 @@ def ss_compare_eval_fn(
             page = 1
             size = 100
             while True:
-                response = requests.get(f"{url}&page={page}&size={size}", timeout=60)
+                response = requests.get(f"{url}&current={page}&size={size}", timeout=60)
                 if response.status_code == 200:
                     json_data = response.json()
                     if json_data.get("success"):
@@ -181,6 +190,16 @@ def ss_compare_eval_fn(
         except Exception as e:
             raise CompEvalError(f"网络请求 {url} 失败, {e}")
         return pd.DataFrame(items)
+
+    logging.info(f"读取数据方数据")
+    data_df = wait(
+        data_pyu(read_data)(input_path[data_party]))
+    logging.info(f"读取数据方数据成功 {len(data_df)}")
+
+    logging.info(f"读取规则方数据")
+    rule_df = wait(
+        data_pyu(read_data)(input_path[rule_party]))
+    logging.info(f"读取规则方数据成功 {len(rule_df)}")
 
     logging.info(f"读取订单数据")
     order_df = wait(
