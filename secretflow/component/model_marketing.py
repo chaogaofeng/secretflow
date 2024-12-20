@@ -250,9 +250,9 @@ def ss_compare_eval_fn(
             months = int(model_df.iloc[0]["months"])
         order_df_processed = process_order(order_df, months=months)
         result_df = supplier_df.merge(order_df_processed, on="supplier_name")
-        result_df["is_qualified"] = result_df.apply(lambda x: 'true' if (
+        result_df["is_qualified"] = result_df.apply(lambda x: True if (
                 x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and
-                x["total_order_amount"] > total_order_amount) else "false",axis=1)
+                x["total_order_amount"] > total_order_amount) else False,axis=1)
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
 
@@ -273,7 +273,7 @@ def ss_compare_eval_fn(
     logging.info(f"读取数据方数据成功")
 
     logging.info(f"读取规则方数据")
-    rule_df = wait(data_pyu(read_data)(input_path[rule_party]))
+    rule_df = wait(rule_pyu(read_data)(input_path[rule_party]))
     logging.info(f"读取规则方数据成功")
 
     logging.info(f"联合处理数据")
