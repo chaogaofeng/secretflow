@@ -163,7 +163,7 @@ def ss_compare_eval_fn(
             df = pd.read_csv(filepath, encoding="utf-8")
         except:
             df = pd.read_csv(filepath, encoding="gbk")
-        logging(f"读取文件{filepath} 成功。")
+        logging(f"读取文件{filepath} 成功。数量为: {len(df)}")
         return df
 
     def read_endpoint(url):
@@ -189,33 +189,33 @@ def ss_compare_eval_fn(
                     raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
         except Exception as e:
             raise CompEvalError(f"网络请求 {url} 失败, {e}")
-        logging.info(f"网络请求 {url} 成功")
 
         df = pd.DataFrame(items)
         if len(df) == 0:
             raise CompEvalError(f"网络请求 {url} 失败, 无数据")
+
+        logging.info(f"网络请求 {url} 成功。 数量为: {len(items)}")
         return df
 
     logging.info(f"读取订单数据")
-    order_df = data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order")
-    logging.info(f"读取订单数据成功 {len(order_df)} {order_df[:1] if len(order_df) else None}")
+    order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
+    logging.info(f"读取订单数据成功")
 
     logging.info(f"读取供应商数据")
-    supplier_df = data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier")
-    logging.info(f"读取供应商数据成功 {len(supplier_df)} {supplier_df[:1] if len(supplier_df) else None}")
+    supplier_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier"))
+    logging.info(f"读取供应商数据成功")
 
     logging.info(f"读取模型数据")
-    model_df = rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers")
-    logging.info(f"读取模型数据成功 {len(model_df)} {model_df[:1] if len(model_df) else None}")
+    model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
+    logging.info(f"读取模型数据成功")
 
     logging.info(f"读取数据方数据")
-    data_df = data_pyu(read_data)(input_path[data_party])
-    logging.info(f"读取数据方数据成功 {len(data_df)} {data_df[:1]  if len(data_df) else None}")
+    data_df = wait(data_pyu(read_data)(input_path[data_party]))
+    logging.info(f"读取数据方数据成功")
 
     logging.info(f"读取规则方数据")
-    rule_df = wait(
-        data_pyu(read_data)(input_path[rule_party]))
-    logging.info(f"读取规则方数据成功 {len(rule_df)} {rule_df[:1]  if len(rule_df) else None}")
+    rule_df = wait(data_pyu(read_data)(input_path[rule_party]))
+    logging.info(f"读取规则方数据成功")
 
     def process_order(df, months=12):
         logging.info(f"处理订单数据")
@@ -237,7 +237,7 @@ def ss_compare_eval_fn(
         processed_df = df_recent.groupby("supplier_name")["order_amount_tax_included"].sum().reset_index()
         processed_df.rename(columns={"order_amount_tax_included": f"total_order_amount"}, inplace=True)
 
-        logging.info(f"处理订单数据成功 {len(processed_df)}")
+        logging.info(f"处理订单数据成功。数量为: {len(processed_df)}")
         return processed_df
 
     def process_model(order_df, supplier_df, model_df):
