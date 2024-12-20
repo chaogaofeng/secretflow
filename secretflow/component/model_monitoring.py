@@ -49,12 +49,12 @@ monitoring_comp.io(
     desc="Individual table for data provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
-        TableColParam(
-            name="endpoint",
-            desc="endpoint used to access the data service api.",
-            col_min_cnt_inclusive=1,
-            col_max_cnt_inclusive=1
-        ),
+        # TableColParam(
+        #     name="endpoint",
+        #     desc="endpoint used to access the data service api.",
+        #     col_min_cnt_inclusive=1,
+        #     col_max_cnt_inclusive=1
+        # ),
         TableColParam(
             name="features",
             desc="Column(s) used to output.",
@@ -69,12 +69,12 @@ monitoring_comp.io(
     desc="Individual table for rule provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
-        TableColParam(
-            name="endpoint",
-            desc="endpoint used to access the rule service api.",
-            col_min_cnt_inclusive=1,
-            col_max_cnt_inclusive=1
-        ),
+        # TableColParam(
+        #     name="endpoint",
+        #     desc="endpoint used to access the rule service api.",
+        #     col_min_cnt_inclusive=1,
+        #     col_max_cnt_inclusive=1
+        # ),
         TableColParam(
             name="features",
             desc="Column(s) used to output.",
