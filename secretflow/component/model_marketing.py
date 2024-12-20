@@ -164,7 +164,7 @@ def ss_compare_eval_fn(
             page = 1
             size = 100
             while True:
-                response = requests.get(f"{url}&page={page}&size={size}")
+                response = requests.get(f"{url}&page={page}&size={size}", timeout=60)
                 if response.status_code == 200:
                     json_data = response.json()
                     if json_data.get("success"):
@@ -262,7 +262,7 @@ def ss_compare_eval_fn(
                     'task_id': task_id,
                     "params": df.to_json(orient="records")
                 }
-                response = requests.post(url, json=payload)
+                response = requests.post(url, json=payload, timeout=60)
                 if response.status_code == 200:
                     logging.info(f"网络请求 {url} 成功")
                 else:
