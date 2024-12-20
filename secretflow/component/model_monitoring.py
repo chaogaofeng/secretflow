@@ -1,5 +1,8 @@
+import logging
 import os
 import pandas as pd
+import requests
+
 from secretflow import PYU, wait, SPU
 from secretflow.component.component import (
     Component,
@@ -36,6 +39,20 @@ monitoring_comp.str_attr(
     is_optional=False,
 )
 
+monitoring_comp.str_attr(
+    name="data_endpoint",
+    desc="endpoint used to access the data service api.",
+    is_list=False,
+    is_optional=False,
+)
+
+monitoring_comp.str_attr(
+    name="rule_endpoint",
+    desc="endpoint used to access the rule service api.",
+    is_list=False,
+    is_optional=False,
+)
+
 monitoring_comp.party_attr(
     name="receiver_parties",
     desc="Party names of receiver for result, all party will be receivers default.",
@@ -50,12 +67,13 @@ monitoring_comp.io(
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
         TableColParam(
-            name="key",
+            name="feature",
             desc="Column(s) used to output.",
-            col_min_cnt_inclusive=1,
-        )
+            # col_min_cnt_inclusive=1,
+        ),
     ],
 )
+
 monitoring_comp.io(
     io_type=IoType.INPUT,
     name="rule_input",
@@ -63,10 +81,10 @@ monitoring_comp.io(
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
         TableColParam(
-            name="key",
+            name="feature",
             desc="Column(s) used to output.",
-            col_min_cnt_inclusive=1,
-        )
+            # col_min_cnt_inclusive=1,
+        ),
     ],
 )
 
@@ -90,11 +108,13 @@ def ss_compare_eval_fn(
         *,
         ctx,
         task_id,
+        data_endpoint,
+        rule_endpoint,
         receiver_parties,
         data_input,
-        data_input_key,
+        data_input_feature,
         rule_input,
-        rule_input_key,
+        rule_input_feature,
         data_output,
         rule_output
 ):
@@ -103,15 +123,15 @@ def ss_compare_eval_fn(
             f"receiver_parties should be empty or have two parties, {receiver_parties}"
         )
 
-    data_path_info = extract_data_infos(data_input)
+    data_path_info = extract_data_infos(data_input, load_ids=True, load_features=True, load_labels=True)
     data_party = list(data_path_info.keys())[0]
-    rule_path_info = extract_data_infos(rule_input)
+    rule_path_info = extract_data_infos(rule_input, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
-    print(f"data_party: {data_party}")
-    print(f"rule_party: {rule_party}")
-    print(f"data_party output: {data_output}")
-    print(f"rule_party output: {rule_output}")
-    print(f"receiver_parties: {receiver_parties})")
+    logging.info(f"数据参与方: {data_party}")
+    logging.info(f"规则参与方: {rule_party}")
+    logging.info(f"输出参与方列表: {receiver_parties})")
+    logging.info(f"数据参与方输出: {data_output}")
+    logging.info(f"规则参与方输出: {rule_output}")
 
     input_path = {
         data_party: os.path.join(
@@ -124,7 +144,7 @@ def ss_compare_eval_fn(
         rule_party: rule_path_info[rule_party].uri,
     }
     with ctx.tracer.trace_io():
-        download_files(ctx, uri, input_path)
+        download_files(ctx, uri, input_path, overwrite=False)
 
     # get spu config from ctx
     if ctx.spu_configs is None or len(ctx.spu_configs) == 0:
@@ -137,69 +157,70 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
-    def read_endpoint(filepath, endpoint_key, path):
-        import pandas as pd
-        import requests
+    def read_data(filepath):
+        logging(f"读取文件{filepath} ...")
         try:
             df = pd.read_csv(filepath, encoding="utf-8")
         except:
             df = pd.read_csv(filepath, encoding="gbk")
+        logging(f"读取文件{filepath} 成功。数量为: {len(df)}")
+        return df
 
-        data = []
-        endpoint = ""
-        if endpoint_key not in df.columns:
-            raise CompEvalError(f"{endpoint_key} is not in input file")
-        else:
-            for index, row in df.iterrows():
-                endpoint = row[endpoint_key]
-                url = f"{endpoint}/{path}"
-                print(f"请求url: {url}")
-                try:
-                    response = requests.get(url)
-                    if response.status_code == 200:
-                        json_data = response.json()
-                        if json_data.get("success"):
-                            data.extend(json_data.get("data", []))
+    def read_endpoint(url):
+        items = []
+        logging.info(f"网络请求 {url} ...")
+        try:
+            page = 1
+            size = 100
+            while True:
+                response = requests.get(f"{url}&current={page}&size={size}", timeout=60)
+                if response.status_code == 200:
+                    json_data = response.json()
+                    if json_data.get("success"):
+                        data = json_data.get("data", [])
+                        items.extend(data.get("data", []))
+                        if page >= data.get('total_pages', 1):
+                            break
+                        page += 1
                     else:
-                        raise CompEvalError(f"请求endpoint: {url} 失败, code {response.status_code}")
-                except Exception as e:
-                    raise CompEvalError(f"请求endpoint: {url} 失败, {e}")
-        return pd.DataFrame(data), endpoint
+                        raise CompEvalError(f"网络请求 {url} 失败, {json_data.get('message')}")
+                else:
+                    raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
+        except Exception as e:
+            raise CompEvalError(f"网络请求 {url} 失败, {e}")
 
-    print(f"读取订单数据 {input_path[data_party]}")
-    order_df, data_endpoint = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
-                                       path='mpc/data/list/?type=order')
-    print(f"读取订单数据成功 {len(order_df)}")
+        df = pd.DataFrame(items)
+        if len(df) == 0:
+            raise CompEvalError(f"网络请求 {url} 失败, 无数据")
 
-    print(f"读取供应商数据 {input_path[data_party]}")
-    supplier_df, data_endpoint = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
-                                          path='mpc/data/list/?type=supplier')
-    print(f"读取供应商数据成功 {len(supplier_df)}")
-
-    print(f"读取模型数据 {input_path[rule_party]}")
-    model_df, rule_endpoint = rule_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint,
-                                       path='tmpc/model/params/?type=qualified_suppliers')
-    print(f"读取模型数据成功 {len(model_df)}")
+        logging.info(f"网络请求 {url} 成功。 数量为: {len(items)}")
+        return df
 
     def process_order(df, months=12):
-        print(f"预处理订单数据")
+        logging.info(f"处理订单数据")
 
-        df["order_date"] = pd.to_datetime(df["order_date"], format="%Y/%m/%d")
+        # 转换日期列
+        df["order_date"] = pd.to_datetime(df["order_date"])
 
-        from datetime import datetime
-        current_date = pd.Timestamp(datetime.now().strftime("%Y/%m/%d"))
+        # 获取当前日期，并计算开始日期
+        current_date = pd.Timestamp.now().normalize()
         start_date = current_date - pd.DateOffset(months=months)
 
+        # 确保金额列是数值类型
+        df["order_amount_tax_included"] = pd.to_numeric(df["order_amount_tax_included"], errors="coerce")
+
+        # 筛选最近的订单
         df_recent = df[(df["order_date"] >= start_date) & (df["order_date"] <= current_date)]
 
         # 按供应商分组计算累计金额
         processed_df = df_recent.groupby("supplier_name")["order_amount_tax_included"].sum().reset_index()
         processed_df.rename(columns={"order_amount_tax_included": f"total_order_amount"}, inplace=True)
 
-        print(f"预处理订单数据成功 {len(processed_df)}")
+        logging.info(f"处理订单数据成功。数量为: {len(processed_df)}")
         return processed_df
 
     def process_model(order_df, supplier_df, model_df):
+        logging.info(f"两方处理数据")
         if 'order_date' not in order_df.columns:
             raise CompEvalError("order_date is not in order file")
         if 'order_amount_tax_included' not in order_df.columns:
@@ -207,7 +228,10 @@ def ss_compare_eval_fn(
         if 'supplier_name' not in order_df.columns:
             raise CompEvalError("supplier_name is not in order file")
 
-
+        if 'supplier_name' not in supplier_df.columns:
+            raise RuntimeError("supplier_name is not in supplier file")
+        # if "is_qualified" not in supplier_df.columns:
+        #     raise CompEvalError("is_qualified is not in supplier file")
         # if 'cooperation_duration' not in supplier_df.columns:
         #     raise CompEvalError("cooperation_duration is not in supplier file")
         if 'latest_rating' not in supplier_df.columns:
@@ -220,49 +244,106 @@ def ss_compare_eval_fn(
         if 'total_order_amount' not in model_df.columns:
             raise CompEvalError("total_order_amount is not in model file")
 
-        # cooperation_duration = model_df.iloc[0]["cooperation_duration"]
-        latest_rating = model_df.iloc[0]["latest_rating"]
-        total_order_amount = model_df.iloc[0]["total_order_amount"]
-        order_df_processed = process_order(order_df, months=model_df)
-        df = supplier_df.merge(order_df_processed, on="supplier_name")
-        df["is_qualified"] = df.apply(lambda x: 'true' if (
-                    x["latest_rating"] >= latest_rating or x[f"total_order_amount"] > total_order_amount) else "false",
-                                  axis=1)
-        return df
+        # cooperation_duration = float(model_df.iloc[0]["cooperation_duration"])
+        latest_rating = float(model_df.iloc[0]["latest_rating"])
+        total_order_amount = float(model_df.iloc[0]["total_order_amount"])
+        months = 12
+        if 'months' in model_df.columns:
+            months = int(model_df.iloc[0]["months"])
+        order_df_processed = process_order(order_df, months=months)
+        result_df = supplier_df.merge(order_df_processed, on="supplier_name")
+        # result_df["warning_status"] = result_df.apply(lambda x: True if (
+        #         x["latest_rating"] < latest_rating or
+        #         x["total_order_amount"] < total_order_amount) else False,
+        #                                             axis=1)
 
-    # print(f"处理数据")
-    # result_df = spu(process_model)(order_df, supplier_df, model_df)
-    # print(f"处理数据成功 {len(result_df)}")
-    result_df = order_df
+        monitoring_data = []
+        for _, row in result_df.iterrows():
+            # 添加供应商评分监测
+            if row["latest_rating"] < latest_rating:
+                monitoring_data.append({
+                    "supplier_name": row["supplier_name"],
+                    "monitoring_item": "供应商评分",
+                    "monitoring_value": row["latest_rating"],
+                    "warning_status": True,
+                    "warning_method": "平台消息，短信",
+                    "receiver": row['contact_person'] if 'contact_person' in row else ""
+                })
+            elif row["total_order_amount"] < total_order_amount:
+                monitoring_data.append({
+                    "supplier_name": row["supplier_name"],
+                    "monitoring_item": f"供应商近{months}个月与核企累计订单金额",
+                    "monitoring_value": row["latest_rating"],
+                    "warning_status": True,
+                    "warning_method": "平台消息，短信",
+                    "receiver": row['contact_person'] if 'contact_person' in row else ""
+                })
+            else:
+                monitoring_data.append({
+                    "supplier_name": row["supplier_name"],
+                    "monitoring_item": "",
+                    "monitoring_value": "",
+                    "warning_status": False,
+                    "warning_method": "",
+                    "receiver": row['contact_person'] if 'contact_person' in row else ""
+                })
+        logging.info(f"两方处理数据成功 {len(result_df)}")
+        return result_df
 
-    def save_ori_file(df, path, features, endpoint):
-        df = df[features]
+    logging.info(f"读取订单数据")
+    order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
+    logging.info(f"读取订单数据成功")
+
+    logging.info(f"读取供应商数据")
+    supplier_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier"))
+    logging.info(f"读取供应商数据成功")
+
+    logging.info(f"读取模型数据")
+    model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
+    logging.info(f"读取模型数据成功")
+
+    logging.info(f"读取数据方数据")
+    data_df = wait(data_pyu(read_data)(input_path[data_party]))
+    logging.info(f"读取数据方数据成功")
+
+    logging.info(f"读取规则方数据")
+    rule_df = wait(rule_pyu(read_data)(input_path[rule_party]))
+    logging.info(f"读取规则方数据成功")
+
+    logging.info(f"联合处理数据")
+    result_df = spu(process_model)(order_df, supplier_df, model_df)
+    logging.info(f"联合处理数据成功")
+
+    def save_ori_file(df, path, feature, url):
+        df = df[feature]
         df.to_csv(path, index=False)
-        if endpoint:
-            import requests
+        if url:
+            logging.info(f"网络请求 {url} ...")
             try:
                 payload = {
                     'task_id': task_id,
                     "params": df.to_json(orient="records")
                 }
-                response = requests.post(endpoint, json=payload)
+                response = requests.post(url, json=payload, timeout=60)
                 if response.status_code == 200:
-                    print(f"请求endpoint: {endpoint} 成功")
+                    logging.info(f"网络请求 {url} 成功")
                 else:
-                    raise CompEvalError(f"请求endpoint: {endpoint} 失败, code {response.status_code}")
+                    raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
             except Exception as e:
-                raise CompEvalError(f"请求endpoint: {endpoint} 失败, {e}")
+                raise CompEvalError(f"网络请求 {url} 失败, {e}")
 
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
-        print(f"data写入输出文件 {data_output_csv_filename}")
-        wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_features, f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
-        print(f"data写入输出文件成功 {data_output_csv_filename}")
+        logging.info(f"数据方输出文件 {data_output_csv_filename}")
+        wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_feature,
+                                     f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
+        logging.info(f"数据方输出输出文件成功 {data_output_csv_filename}")
     if rule_party in receiver_parties:
         rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
-        print(f"rule写入输出文件 {rule_output_csv_filename}")
-        wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_features, f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
-        print(f"rule写入输出文件成功 {rule_output_csv_filename}")
+        logging.info(f"规则方输出文件 {rule_output_csv_filename}")
+        wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_feature,
+                                     f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
+        logging.info(f"规则方输出文件成功 {rule_output_csv_filename}")
 
     imeta = IndividualTable()
     assert data_input.meta.Unpack(imeta)
@@ -270,7 +351,7 @@ def ss_compare_eval_fn(
     for i, t in zip(list(imeta.schema.ids), list(imeta.schema.id_types)):
         name_types[i] = t
 
-    print("输出结果")
+    logging.info("组件输出结果")
     data_output_db = DistData(
         name=data_output,
         type=str(DistDataType.INDIVIDUAL_TABLE),
@@ -285,8 +366,8 @@ def ss_compare_eval_fn(
     )
     data_output_meta = IndividualTable(
         schema=TableSchema(
-            label_types=[name_types[feature] for feature in data_input_features if feature in name_types],
-            labels=[name_types[feature] for feature in data_input_features if feature in name_types],
+            label_types=[name_types[feature] for feature in data_input_feature if feature in name_types],
+            labels=[name_types[feature] for feature in data_input_feature if feature in name_types],
         )
     )
     data_output_db.meta.Pack(data_output_meta)
@@ -306,8 +387,8 @@ def ss_compare_eval_fn(
 
     rule_output_meta = IndividualTable(
         schema=TableSchema(
-            label_types=[name_types[feature] for feature in data_input_features if feature in name_types],
-            labels=[name_types[feature] for feature in data_input_features if feature in name_types],
+            label_types=[name_types[feature] for feature in data_input_feature if feature in name_types],
+            labels=[name_types[feature] for feature in data_input_feature if feature in name_types],
         )
     )
     rule_output_db.meta.Pack(rule_output_meta)

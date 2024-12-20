@@ -67,7 +67,7 @@ marketing_comp.io(
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
         TableColParam(
-            name="features",
+            name="feature",
             desc="Column(s) used to output.",
             # col_min_cnt_inclusive=1,
         ),
@@ -81,7 +81,7 @@ marketing_comp.io(
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
         TableColParam(
-            name="features",
+            name="feature",
             desc="Column(s) used to output.",
             # col_min_cnt_inclusive=1,
         ),
@@ -112,9 +112,9 @@ def ss_compare_eval_fn(
         rule_endpoint,
         receiver_parties,
         data_input,
-        data_input_features,
+        data_input_feature,
         rule_input,
-        rule_input_features,
+        rule_input_feature,
         data_output,
         rule_output
 ):
@@ -228,6 +228,8 @@ def ss_compare_eval_fn(
         if 'supplier_name' not in order_df.columns:
             raise CompEvalError("supplier_name is not in order file")
 
+        if 'supplier_name' not in supplier_df.columns:
+            raise RuntimeError("supplier_name is not in supplier file")
         # if "is_qualified" not in supplier_df.columns:
         #     raise CompEvalError("is_qualified is not in supplier file")
         if 'cooperation_duration' not in supplier_df.columns:
@@ -280,8 +282,8 @@ def ss_compare_eval_fn(
     result_df = spu(process_model)(order_df, supplier_df, model_df)
     logging.info(f"联合处理数据成功")
 
-    def save_ori_file(df, path, features, url):
-        df = df[features]
+    def save_ori_file(df, path, feature, url):
+        df = df[feature]
         df.to_csv(path, index=False)
         if url:
             logging.info(f"网络请求 {url} ...")
@@ -301,13 +303,13 @@ def ss_compare_eval_fn(
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
         logging.info(f"数据方输出文件 {data_output_csv_filename}")
-        wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_features,
+        wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_feature,
                                      f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
         logging.info(f"数据方输出输出文件成功 {data_output_csv_filename}")
     if rule_party in receiver_parties:
         rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
         logging.info(f"规则方输出文件 {rule_output_csv_filename}")
-        wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_features,
+        wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_feature,
                                      f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
         logging.info(f"规则方输出文件成功 {rule_output_csv_filename}")
 
@@ -332,8 +334,8 @@ def ss_compare_eval_fn(
     )
     data_output_meta = IndividualTable(
         schema=TableSchema(
-            label_types=[name_types[feature] for feature in data_input_features if feature in name_types],
-            labels=[name_types[feature] for feature in data_input_features if feature in name_types],
+            label_types=[name_types[feature] for feature in data_input_feature if feature in name_types],
+            labels=[name_types[feature] for feature in data_input_feature if feature in name_types],
         )
     )
     data_output_db.meta.Pack(data_output_meta)
@@ -353,8 +355,8 @@ def ss_compare_eval_fn(
 
     rule_output_meta = IndividualTable(
         schema=TableSchema(
-            label_types=[name_types[feature] for feature in data_input_features if feature in name_types],
-            labels=[name_types[feature] for feature in data_input_features if feature in name_types],
+            label_types=[name_types[feature] for feature in data_input_feature if feature in name_types],
+            labels=[name_types[feature] for feature in data_input_feature if feature in name_types],
         )
     )
     rule_output_db.meta.Pack(rule_output_meta)

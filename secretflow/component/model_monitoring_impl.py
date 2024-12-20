@@ -68,21 +68,23 @@ def process_model(order_df, supplier_df, model_df):
     if 'supplier_name' not in order_df.columns:
         raise RuntimeError("supplier_name is not in order file")
 
+    if 'supplier_name' not in supplier_df.columns:
+        raise RuntimeError("supplier_name is not in supplier file")
     # if "is_qualified" not in supplier_df.columns:
     #     raise RuntimeError("is_qualified is not in supplier file")
-    if 'cooperation_duration' not in supplier_df.columns:
-        raise RuntimeError("cooperation_duration is not in supplier file")
+    # if 'cooperation_duration' not in supplier_df.columns:
+    #     raise RuntimeError("cooperation_duration is not in supplier file")
     if 'latest_rating' not in supplier_df.columns:
         raise RuntimeError("latest_rating is not in supplier file")
 
-    if 'cooperation_duration' not in model_df.columns:
-        raise RuntimeError("cooperation_duration is not in model file")
+    # if 'cooperation_duration' not in model_df.columns:
+    #     raise RuntimeError("cooperation_duration is not in model file")
     if 'latest_rating' not in model_df.columns:
         raise RuntimeError("latest_rating is not in model file")
     if 'total_order_amount' not in model_df.columns:
         raise RuntimeError("total_order_amount is not in model file")
 
-    cooperation_duration = float(model_df.iloc[0]["cooperation_duration"])
+    # cooperation_duration = float(model_df.iloc[0]["cooperation_duration"])
     latest_rating = float(model_df.iloc[0]["latest_rating"])
     total_order_amount = float(model_df.iloc[0]["total_order_amount"])
     months = 12
@@ -90,10 +92,43 @@ def process_model(order_df, supplier_df, model_df):
         months = int(model_df.iloc[0]["months"])
     order_df_processed = process_order(order_df, months=months)
     result_df = supplier_df.merge(order_df_processed, on="supplier_name")
-    result_df["is_qualified"] = result_df.apply(lambda x: True if (
-            x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and
-            x["total_order_amount"] > total_order_amount) else False,
-                                                axis=1)
+    # result_df["warning_status"] = result_df.apply(lambda x: True if (
+    #         x["latest_rating"] < latest_rating or
+    #         x["total_order_amount"] < total_order_amount) else False,
+    #                                             axis=1)
+
+    monitoring_data = []
+    for _, row in result_df.iterrows():
+        # 添加供应商评分监测
+        if row["latest_rating"] < latest_rating:
+            monitoring_data.append({
+                "supplier_name": row["supplier_name"],
+                "monitoring_item": "供应商评分",
+                "monitoring_value": row["latest_rating"],
+                "warning_status": True,
+                "warning_method": "平台消息，短信",
+                "receiver": row['contact_person'] if 'contact_person' in row else ""
+            })
+        elif row["total_order_amount"] < total_order_amount:
+            monitoring_data.append({
+                "supplier_name": row["supplier_name"],
+                "monitoring_item": f"供应商近{months}个月与核企累计订单金额",
+                "monitoring_value": row["latest_rating"],
+                "warning_status": True,
+                "warning_method": "平台消息，短信",
+                "receiver": row['contact_person'] if 'contact_person' in row else ""
+            })
+        else:
+            monitoring_data.append({
+                "supplier_name": row["supplier_name"],
+                "monitoring_item": "",
+                "monitoring_value": "",
+                "warning_status": False,
+                "warning_method": "",
+                "receiver": row['contact_person'] if 'contact_person' in row else ""
+            })
+
+    result_df = pd.DataFrame(monitoring_data)
     logging.info(f"两方处理数据成功 {len(result_df)}")
     return result_df
 
@@ -118,7 +153,7 @@ if __name__ == '__main__':
     logging.info(f"读取供应商数据成功")
 
     logging.info(f"读取模型数据")
-    model_df = read_endpoint(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers")
+    model_df = read_endpoint(f"{rule_endpoint}/tmpc/model/params/?type=loan_follow_up")
     logging.info(f"读取模型数据成功")
 
     logging.info(f"联合处理数据")
