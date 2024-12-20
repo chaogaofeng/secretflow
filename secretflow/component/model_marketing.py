@@ -266,16 +266,17 @@ def ss_compare_eval_fn(
         cooperation_duration = float(model_df.iloc[0]["cooperation_duration"])
         latest_rating = float(model_df.iloc[0]["latest_rating"])
         total_order_amount = float(model_df.iloc[0]["total_order_amount"])
-        order_df_processed = process_order(order_df, months=model_df)
-        df = supplier_df.merge(order_df_processed, on="supplier_name")
-        df["is_qualified"] = df.apply(lambda x: 'true' if (
+        order_df_processed = process_order(order_df, months=12)
+        result_df = supplier_df.merge(order_df_processed, on="supplier_name")
+        result_df["is_qualified"] = result_df.apply(lambda x: 'true' if (
                 x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and
-                x["total_order_amount"] > total_order_amount) else "false",
-                                      axis=1)
+                x["total_order_amount"] > total_order_amount) else "false",axis=1)
         logging.info(f"两方处理数据成功 {len(result_df)}")
-        return df
+        return result_df
 
+    logging.info(f"联合处理数据")
     result_df = spu(process_model)(order_df, supplier_df, model_df)
+    logging.info(f"联合处理数据成功")
 
     def save_ori_file(df, path, features, url):
         df = df[features]
