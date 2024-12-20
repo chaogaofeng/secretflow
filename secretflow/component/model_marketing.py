@@ -182,17 +182,17 @@ def ss_compare_eval_fn(
             raise CompEvalError(f"网络请求 {url} 失败, {e}")
         return pd.DataFrame(items)
 
-    logging.info(f"读取订单数据 {input_path[data_party]}")
+    logging.info(f"读取订单数据")
     order_df = wait(
         data_pyu(read_endpoint)(f"{data_endpoint}/mpc/data/list/?type=order"))
     logging.info(f"读取订单数据成功 {len(order_df)}")
 
-    logging.info(f"读取供应商数据 {input_path[data_party]}")
+    logging.info(f"读取供应商数据")
     supplier_df = wait(
         data_pyu(read_endpoint)(f"{data_endpoint}/mpc/data/list/?type=supplier"))
     logging.info(f"读取供应商数据成功 {len(supplier_df)}")
 
-    logging.info(f"读取模型数据 {input_path[rule_party]}")
+    logging.info(f"读取模型数据")
     model_df = wait(
         rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
     logging.info(f"读取模型数据成功 {len(model_df)}")
