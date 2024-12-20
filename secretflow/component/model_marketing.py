@@ -176,7 +176,6 @@ def ss_compare_eval_fn(
                 response = requests.get(f"{url}&current={page}&size={size}", timeout=60)
                 if response.status_code == 200:
                     json_data = response.json()
-                    logging.info(f"网络请求: {json_data}")
                     if json_data.get("success"):
                         data = json_data.get("data", [])
                         items.extend(data.get("data", []))
@@ -196,26 +195,6 @@ def ss_compare_eval_fn(
 
         logging.info(f"网络请求 {url} 成功。 数量为: {len(items)}")
         return df
-
-    logging.info(f"读取订单数据")
-    order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
-    logging.info(f"读取订单数据成功")
-
-    logging.info(f"读取供应商数据")
-    supplier_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier"))
-    logging.info(f"读取供应商数据成功")
-
-    logging.info(f"读取模型数据")
-    model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
-    logging.info(f"读取模型数据成功")
-
-    logging.info(f"读取数据方数据")
-    data_df = wait(data_pyu(read_data)(input_path[data_party]))
-    logging.info(f"读取数据方数据成功")
-
-    logging.info(f"读取规则方数据")
-    rule_df = wait(data_pyu(read_data)(input_path[rule_party]))
-    logging.info(f"读取规则方数据成功")
 
     def process_order(df, months=12):
         logging.info(f"处理订单数据")
@@ -266,13 +245,36 @@ def ss_compare_eval_fn(
         cooperation_duration = float(model_df.iloc[0]["cooperation_duration"])
         latest_rating = float(model_df.iloc[0]["latest_rating"])
         total_order_amount = float(model_df.iloc[0]["total_order_amount"])
-        order_df_processed = process_order(order_df, months=12)
+        months = 12
+        if 'months' in model_df.columns:
+            months = int(model_df.iloc[0]["months"])
+        order_df_processed = process_order(order_df, months=months)
         result_df = supplier_df.merge(order_df_processed, on="supplier_name")
         result_df["is_qualified"] = result_df.apply(lambda x: 'true' if (
                 x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and
                 x["total_order_amount"] > total_order_amount) else "false",axis=1)
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
+
+    logging.info(f"读取订单数据")
+    order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
+    logging.info(f"读取订单数据成功")
+
+    logging.info(f"读取供应商数据")
+    supplier_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier"))
+    logging.info(f"读取供应商数据成功")
+
+    logging.info(f"读取模型数据")
+    model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
+    logging.info(f"读取模型数据成功")
+
+    logging.info(f"读取数据方数据")
+    data_df = wait(data_pyu(read_data)(input_path[data_party]))
+    logging.info(f"读取数据方数据成功")
+
+    logging.info(f"读取规则方数据")
+    rule_df = wait(data_pyu(read_data)(input_path[rule_party]))
+    logging.info(f"读取规则方数据成功")
 
     logging.info(f"联合处理数据")
     result_df = spu(process_model)(order_df, supplier_df, model_df)
