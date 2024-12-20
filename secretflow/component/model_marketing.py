@@ -123,11 +123,11 @@ def ss_compare_eval_fn(
     data_party = list(data_path_info.keys())[0]
     rule_path_info = extract_data_infos(rule_input, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
-    print(f"data_party: {data_party}")
-    print(f"rule_party: {rule_party}")
-    print(f"data_party output: {data_output}")
-    print(f"rule_party output: {rule_output}")
-    print(f"receiver_parties: {receiver_parties})")
+    logging.info(f"数据参与方: {data_party}")
+    logging.info(f"规则参与方: {rule_party}")
+    logging.info(f"输出参与方列表: {receiver_parties})")
+    logging.info(f"数据参与方输出: {data_output}")
+    logging.info(f"规则参与方输出: {rule_output}")
 
     input_path = {
         data_party: os.path.join(
@@ -135,7 +135,6 @@ def ss_compare_eval_fn(
         ),
         rule_party: os.path.join(ctx.data_dir, rule_path_info[rule_party].uri),
     }
-    logging.info(f"{data_party}, {ctx.data_dir}, {data_path_info[data_party].uri}")
     uri = {
         data_party: data_path_info[data_party].uri,
         rule_party: rule_path_info[rule_party].uri,
@@ -170,7 +169,7 @@ def ss_compare_eval_fn(
             for index, row in df.iterrows():
                 endpoint = row[endpoint_key]
                 url = f"{endpoint}/{path}"
-                print(f"请求url: {url}")
+                logging.info(f"请求url: {url}")
                 try:
                     response = requests.get(url)
                     if response.status_code == 200:
@@ -183,23 +182,23 @@ def ss_compare_eval_fn(
                     raise CompEvalError(f"请求endpoint: {url} 失败, {e}")
         return pd.DataFrame(data), endpoint
 
-    print(f"读取订单数据 {input_path[data_party]}")
-    order_df, data_endpoint = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
-                                       path='mpc/data/list/?type=order')
-    print(f"读取订单数据成功 {len(order_df)}")
+    logging.info(f"读取订单数据 {input_path[data_party]}")
+    order_df, data_endpoint = wait(data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
+                                       path='mpc/data/list/?type=order'))
+    logging.info(f"读取订单数据成功 {len(order_df)}")
 
-    print(f"读取供应商数据 {input_path[data_party]}")
-    supplier_df, data_endpoint = data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
-                                          path='mpc/data/list/?type=supplier')
-    print(f"读取供应商数据成功 {len(supplier_df)}")
+    logging.info(f"读取供应商数据 {input_path[data_party]}")
+    supplier_df, data_endpoint = wait(data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
+                                          path='mpc/data/list/?type=supplier'))
+    logging.info(f"读取供应商数据成功 {len(supplier_df)}")
 
-    print(f"读取模型数据 {input_path[rule_party]}")
-    model_df, rule_endpoint = rule_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint,
-                                       path='tmpc/model/params/?type=qualified_suppliers')
-    print(f"读取模型数据成功 {len(model_df)}")
+    logging.info(f"读取模型数据 {input_path[rule_party]}")
+    model_df, rule_endpoint = wait(rule_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint,
+                                       path='tmpc/model/params/?type=qualified_suppliers'))
+    logging.info(f"读取模型数据成功 {len(model_df)}")
 
     def process_order(df, months=12):
-        print(f"预处理订单数据")
+        logging.info(f"预处理订单数据")
 
         df["order_date"] = pd.to_datetime(df["order_date"], format="%Y/%m/%d")
 
@@ -213,7 +212,7 @@ def ss_compare_eval_fn(
         processed_df = df_recent.groupby("supplier_name")["order_amount_tax_included"].sum().reset_index()
         processed_df.rename(columns={"order_amount_tax_included": f"total_order_amount"}, inplace=True)
 
-        print(f"预处理订单数据成功 {len(processed_df)}")
+        logging.info(f"预处理订单数据成功 {len(processed_df)}")
         return processed_df
 
     def process_model(order_df, supplier_df, model_df):
@@ -248,9 +247,9 @@ def ss_compare_eval_fn(
                                   axis=1)
         return df
 
-    # print(f"处理数据")
+    # logging.info(f"处理数据")
     # result_df = spu(process_model)(order_df, supplier_df, model_df)
-    # print(f"处理数据成功 {len(result_df)}")
+    # logging.info(f"处理数据成功 {len(result_df)}")
     result_df = order_df
 
     def save_ori_file(df, path, features, endpoint):
@@ -265,7 +264,7 @@ def ss_compare_eval_fn(
                 }
                 response = requests.post(endpoint, json=payload)
                 if response.status_code == 200:
-                    print(f"请求endpoint: {endpoint} 成功")
+                    logging.info(f"请求endpoint: {endpoint} 成功")
                 else:
                     raise CompEvalError(f"请求endpoint: {endpoint} 失败, code {response.status_code}")
             except Exception as e:
@@ -273,14 +272,14 @@ def ss_compare_eval_fn(
 
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
-        print(f"data写入输出文件 {data_output_csv_filename}")
+        logging.info(f"data写入输出文件 {data_output_csv_filename}")
         wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_features, f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
-        print(f"data写入输出文件成功 {data_output_csv_filename}")
+        logging.info(f"data写入输出文件成功 {data_output_csv_filename}")
     if rule_party in receiver_parties:
         rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
-        print(f"rule写入输出文件 {rule_output_csv_filename}")
+        logging.info(f"rule写入输出文件 {rule_output_csv_filename}")
         wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_features, f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
-        print(f"rule写入输出文件成功 {rule_output_csv_filename}")
+        logging.info(f"rule写入输出文件成功 {rule_output_csv_filename}")
 
     imeta = IndividualTable()
     assert data_input.meta.Unpack(imeta)
@@ -288,7 +287,7 @@ def ss_compare_eval_fn(
     for i, t in zip(list(imeta.schema.ids), list(imeta.schema.id_types)):
         name_types[i] = t
 
-    print("输出结果")
+    logging.info("输出结果")
     data_output_db = DistData(
         name=data_output,
         type=str(DistDataType.INDIVIDUAL_TABLE),

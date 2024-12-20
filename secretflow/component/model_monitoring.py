@@ -49,37 +49,24 @@ monitoring_comp.io(
     desc="Individual table for data provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
-        # TableColParam(
-        #     name="endpoint",
-        #     desc="endpoint used to access the data service api.",
-        #     col_min_cnt_inclusive=1,
-        #     col_max_cnt_inclusive=1
-        # ),
         TableColParam(
-            name="features",
+            name="key",
             desc="Column(s) used to output.",
             col_min_cnt_inclusive=1,
-        ),
+        )
     ],
 )
-
 monitoring_comp.io(
     io_type=IoType.INPUT,
     name="rule_input",
     desc="Individual table for rule provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
-        # TableColParam(
-        #     name="endpoint",
-        #     desc="endpoint used to access the rule service api.",
-        #     col_min_cnt_inclusive=1,
-        #     col_max_cnt_inclusive=1
-        # ),
         TableColParam(
-            name="features",
+            name="key",
             desc="Column(s) used to output.",
             col_min_cnt_inclusive=1,
-        ),
+        )
     ],
 )
 
@@ -105,11 +92,9 @@ def ss_compare_eval_fn(
         task_id,
         receiver_parties,
         data_input,
-        data_input_endpoint,
-        data_input_features,
+        data_input_key,
         rule_input,
-        rule_input_endpoint,
-        rule_input_features,
+        rule_input_key,
         data_output,
         rule_output
 ):
