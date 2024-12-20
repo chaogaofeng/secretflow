@@ -184,12 +184,12 @@ def ss_compare_eval_fn(
 
     logging.info(f"读取订单数据")
     order_df = wait(
-        data_pyu(read_endpoint)(f"{data_endpoint}/mpc/data/list/?type=order"))
+        data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
     logging.info(f"读取订单数据成功 {len(order_df)}")
 
     logging.info(f"读取供应商数据")
     supplier_df = wait(
-        data_pyu(read_endpoint)(f"{data_endpoint}/mpc/data/list/?type=supplier"))
+        data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier"))
     logging.info(f"读取供应商数据成功 {len(supplier_df)}")
 
     logging.info(f"读取模型数据")
