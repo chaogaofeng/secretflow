@@ -191,16 +191,6 @@ def ss_compare_eval_fn(
             raise CompEvalError(f"网络请求 {url} 失败, {e}")
         return pd.DataFrame(items)
 
-    logging.info(f"读取数据方数据")
-    data_df = wait(
-        data_pyu(read_data)(input_path[data_party]))
-    logging.info(f"读取数据方数据成功 {len(data_df)}")
-
-    logging.info(f"读取规则方数据")
-    rule_df = wait(
-        data_pyu(read_data)(input_path[rule_party]))
-    logging.info(f"读取规则方数据成功 {len(rule_df)}")
-
     logging.info(f"读取订单数据")
     order_df = wait(
         data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
@@ -215,6 +205,16 @@ def ss_compare_eval_fn(
     model_df = wait(
         rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
     logging.info(f"读取模型数据成功 {len(model_df)}")
+
+    logging.info(f"读取数据方数据")
+    data_df = wait(
+        data_pyu(read_data)(input_path[data_party]))
+    logging.info(f"读取数据方数据成功 {len(data_df)}")
+
+    logging.info(f"读取规则方数据")
+    rule_df = wait(
+        data_pyu(read_data)(input_path[rule_party]))
+    logging.info(f"读取规则方数据成功 {len(rule_df)}")
 
     def process_order(df, months=12):
         logging.info(f"处理订单数据")
