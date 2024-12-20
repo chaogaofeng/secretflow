@@ -39,6 +39,20 @@ marketing_comp.str_attr(
     is_optional=False,
 )
 
+marketing_comp.str_attr(
+    name="data_endpoint",
+    desc="endpoint used to access the data service api.",
+    is_list=False,
+    is_optional=False,
+)
+
+marketing_comp.str_attr(
+    name="rule_endpoint",
+    desc="endpoint used to access the rule service api.",
+    is_list=False,
+    is_optional=False,
+)
+
 marketing_comp.party_attr(
     name="receiver_parties",
     desc="Party names of receiver for result, all party will be receivers default.",
@@ -53,12 +67,6 @@ marketing_comp.io(
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
         TableColParam(
-            name="endpoint",
-            desc="endpoint used to access the data service api.",
-            col_min_cnt_inclusive=1,
-            col_max_cnt_inclusive=1
-        ),
-        TableColParam(
             name="features",
             desc="Column(s) used to output.",
             # col_min_cnt_inclusive=1,
@@ -72,12 +80,6 @@ marketing_comp.io(
     desc="Individual table for rule provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=[
-        TableColParam(
-            name="endpoint",
-            desc="endpoint used to access the rule service api.",
-            col_min_cnt_inclusive=1,
-            col_max_cnt_inclusive=1
-        ),
         TableColParam(
             name="features",
             desc="Column(s) used to output.",
@@ -106,12 +108,12 @@ def ss_compare_eval_fn(
         *,
         ctx,
         task_id,
+        data_endpoint,
+        rule_endpoint,
         receiver_parties,
         data_input,
-        data_input_endpoint,
         data_input_features,
         rule_input,
-        rule_input_endpoint,
         rule_input_features,
         data_output,
         rule_output
@@ -155,64 +157,44 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
-    def read_endpoint(filepath, endpoint_key, path):
-        logging.info(f"读取文件 {path} ...")
-        with open(path, "r") as file:  # "r" 表示只读模式
-            content = file.read()
-            logging.info(f"读取文件 {str(content)}")
+    def read_endpoint(url):
+        items = []
+        logging.info(f"网络请求 {url} ...")
         try:
-            df = pd.read_csv(filepath, encoding="utf-8")
-        except:
-            df = pd.read_csv(filepath, encoding="gbk")
-        logging.info(f"读取文件 {path} 成功。 {df}")
-
-        data = []
-        endpoint = ""
-        if endpoint_key not in df.columns:
-            raise CompEvalError(f"{endpoint_key} is not in input file")
-        else:
-            for index, row in df.iterrows():
-                endpoint = row[endpoint_key]
-                url = f"{endpoint}/{path}"
-                logging.info(f"网络请求 {url} ...")
-                try:
-                    page = 1
-                    size = 100
-                    while True:
-                        response = requests.get(f"{url}&page={page}&size={size}")
-                        if response.status_code == 200:
-                            json_data = response.json()
-                            if json_data.get("success"):
-                                data = json_data.get("data", [])
-                                data.extend(data.get("data", []))
-                                if data.get('total_pages', 1) > page:
-                                    logging.info(f"网络请求 {url} 成功")
-                                    break
-                                page += 1
-                            else:
-                                raise CompEvalError(f"网络请求 {url} 失败, {json_data.get('message')}")
-                        else:
-                            raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
-                except Exception as e:
-                    raise CompEvalError(f"网络请求 {url} 失败, {e}")
-        return pd.DataFrame(data), endpoint
+            page = 1
+            size = 100
+            while True:
+                response = requests.get(f"{url}&page={page}&size={size}")
+                if response.status_code == 200:
+                    json_data = response.json()
+                    if json_data.get("success"):
+                        data = json_data.get("data", [])
+                        items.extend(data.get("data", []))
+                        if data.get('total_pages', 1) > page:
+                            logging.info(f"网络请求 {url} 成功")
+                            break
+                        page += 1
+                    else:
+                        raise CompEvalError(f"网络请求 {url} 失败, {json_data.get('message')}")
+                else:
+                    raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
+        except Exception as e:
+            raise CompEvalError(f"网络请求 {url} 失败, {e}")
+        return pd.DataFrame(items)
 
     logging.info(f"读取订单数据 {input_path[data_party]}")
-    order_df, data_endpoint = wait(
-        data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
-                                path='mpc/data/list/?type=order'))
+    order_df = wait(
+        data_pyu(read_endpoint)(f"{data_endpoint}/mpc/data/list/?type=order"))
     logging.info(f"读取订单数据成功 {len(order_df)}")
 
     logging.info(f"读取供应商数据 {input_path[data_party]}")
-    supplier_df, data_endpoint = wait(
-        data_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=data_input_endpoint,
-                                path='mpc/data/list/?type=supplier'))
+    supplier_df = wait(
+        data_pyu(read_endpoint)(f"{data_endpoint}/mpc/data/list/?type=supplier"))
     logging.info(f"读取供应商数据成功 {len(supplier_df)}")
 
     logging.info(f"读取模型数据 {input_path[rule_party]}")
-    model_df, rule_endpoint = wait(
-        rule_pyu(read_endpoint)(filepath=input_path[data_party], endpoint_key=rule_input_endpoint,
-                                path='tmpc/model/params/?type=qualified_suppliers'))
+    model_df = wait(
+        rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
     logging.info(f"读取模型数据成功 {len(model_df)}")
 
     def process_order(df, months=12):
@@ -262,14 +244,13 @@ def ss_compare_eval_fn(
         order_df_processed = process_order(order_df, months=model_df)
         df = supplier_df.merge(order_df_processed, on="supplier_name")
         df["is_qualified"] = df.apply(lambda x: 'true' if (
-                x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and x[
-            f"total_order_amount"] > total_order_amount) else "false",
+                x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and
+                x["total_order_amount"] > total_order_amount) else "false",
                                       axis=1)
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return df
 
-    # result_df = spu(process_model)(order_df, supplier_df, model_df)
-    result_df = order_df
+    result_df = spu(process_model)(order_df, supplier_df, model_df)
 
     def save_ori_file(df, path, features, url):
         df = df[features]
