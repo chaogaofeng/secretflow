@@ -118,9 +118,9 @@ def ss_compare_eval_fn(
             f"receiver_parties should be empty or have two parties, {receiver_parties}"
         )
 
-    data_path_info = extract_data_infos(data_input)
+    data_path_info = extract_data_infos(data_input, load_ids=True, load_features=True, load_labels=True)
     data_party = list(data_path_info.keys())[0]
-    rule_path_info = extract_data_infos(rule_input)
+    rule_path_info = extract_data_infos(rule_input, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
     print(f"data_party: {data_party}")
     print(f"rule_party: {rule_party}")
