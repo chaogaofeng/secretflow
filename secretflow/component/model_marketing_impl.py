@@ -93,7 +93,7 @@ def process_model(order_df, supplier_df, model_df, supplier):
         order_df = order_df[order_df["supplier_name"].isin(supplier)]
         supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
     order_df_processed = process_order(order_df, months=months)
-    result_df = supplier_df.merge(order_df_processed, on="supplier_name")
+    result_df = supplier_df.merge(order_df_processed, on="supplier_name", how="left")
     result_df["is_qualified"] = result_df.apply(lambda x: True if (
             x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and
             x["total_order_amount"] > total_order_amount) else False,

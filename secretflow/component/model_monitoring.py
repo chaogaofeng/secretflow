@@ -261,12 +261,7 @@ def ss_compare_eval_fn(
             order_df = order_df[order_df["supplier_name"].isin(supplier)]
             supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
         order_df_processed = process_order(order_df, months=months)
-        result_df = supplier_df.merge(order_df_processed, on="supplier_name")
-        # result_df["warning_status"] = result_df.apply(lambda x: True if (
-        #         x["latest_rating"] < latest_rating or
-        #         x["total_order_amount"] < total_order_amount) else False,
-        #                                             axis=1)
-
+        result_df = supplier_df.merge(order_df_processed, on="supplier_name", how="left")
         data = []
         for _, row in result_df.iterrows():
             # 添加供应商评分监测
