@@ -181,5 +181,5 @@ if __name__ == '__main__':
     logging.info(f"联合处理数据成功")
 
 
-    save_ori_file(result_df, "loan_follow_up.csv", None, f"{data_endpoint}/tmpc/data/upload/?type=loan_follow_up", 'task_loan_follow_up')
+    save_ori_file(result_df, "loan_follow_up.csv", None, f"{data_endpoint}/tmpc/model/update/?type=loan_follow_up", 'task_loan_follow_up')
     

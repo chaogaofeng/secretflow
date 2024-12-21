@@ -230,8 +230,6 @@ def ss_compare_eval_fn(
 
         if 'supplier_name' not in supplier_df.columns:
             raise CompEvalError("supplier_name is not in supplier file")
-        # if "is_qualified" not in supplier_df.columns:
-        #     raise CompEvalError("is_qualified is not in supplier file")
         # if 'cooperation_duration' not in supplier_df.columns:
         #     raise CompEvalError("cooperation_duration is not in supplier file")
         if 'latest_rating' not in supplier_df.columns:
