@@ -229,7 +229,7 @@ def ss_compare_eval_fn(
             raise CompEvalError("supplier_name is not in order file")
 
         if 'supplier_name' not in supplier_df.columns:
-            raise RuntimeError("supplier_name is not in supplier file")
+            raise CompEvalError("supplier_name is not in supplier file")
         # if "is_qualified" not in supplier_df.columns:
         #     raise CompEvalError("is_qualified is not in supplier file")
         # if 'cooperation_duration' not in supplier_df.columns:
