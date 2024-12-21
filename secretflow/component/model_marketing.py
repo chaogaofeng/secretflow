@@ -158,12 +158,12 @@ def ss_compare_eval_fn(
     rule_pyu = PYU(rule_party)
 
     def read_data(filepath):
-        logging(f"读取文件{filepath} ...")
+        logging.info(f"读取文件{filepath} ...")
         try:
             df = pd.read_csv(filepath, encoding="utf-8")
         except:
             df = pd.read_csv(filepath, encoding="gbk")
-        logging(f"读取文件{filepath} 成功。数量为: {len(df)}")
+        logging.info(f"读取文件{filepath} 成功。数量为: {len(df)}")
         return df
 
     def read_endpoint(url):
