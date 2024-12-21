@@ -109,7 +109,7 @@ def process_model(order_df, supplier_df, model_df, supplier):
         financing_limit = round(row['avg_order_amount'] * x * y, 2)
         data.append({
             "supplier_name": row["supplier_name"],
-            "core_enterprise_name": row['purchaser_name'],
+            "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
             "financing_limit": financing_limit,
             "limit_effective_date": effective_date,
             "status": True,
