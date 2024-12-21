@@ -118,17 +118,19 @@ def process_model(order_df, supplier_df, model_df):
                 "warning_method": "平台消息，短信",
                 "receiver": row['contact_person'] if 'contact_person' in row else ""
             })
-        else:
-            monitoring_data.append({
-                "supplier_name": row["supplier_name"],
-                "monitoring_item": "",
-                "monitoring_value": "",
-                "warning_status": False,
-                "warning_method": "",
-                "receiver": row['contact_person'] if 'contact_person' in row else ""
-            })
+        # else:
+        #     monitoring_data.append({
+        #         "supplier_name": row["supplier_name"],
+        #         "monitoring_item": "",
+        #         "monitoring_value": "",
+        #         "warning_status": False,
+        #         "warning_method": "",
+        #         "receiver": row['contact_person'] if 'contact_person' in row else ""
+        #     })
 
-    result_df = pd.DataFrame(monitoring_data)
+    result_df = pd.DataFrame(monitoring_data,
+                             columns=["supplier_name", "monitoring_item", "monitoring_value", "warning_status",
+                                      "warning_method", "receiver"])
     logging.info(f"两方处理数据成功 {len(result_df)}")
     return result_df
 
@@ -180,6 +182,5 @@ if __name__ == '__main__':
     result_df = process_model(order_df, supplier_df, model_df)
     logging.info(f"联合处理数据成功")
 
-
-    save_ori_file(result_df, "loan_follow_up.csv", None, f"{data_endpoint}/tmpc/model/update/?type=loan_follow_up", 'task_loan_follow_up')
-    
+    save_ori_file(result_df, "model_loan_follow_up.csv", None,
+                  f"{data_endpoint}/tmpc/model/update/?type=loan_follow_up", 'task_loan_follow_up')

@@ -276,15 +276,19 @@ def ss_compare_eval_fn(
                     "warning_method": "平台消息，短信",
                     "receiver": row['contact_person'] if 'contact_person' in row else ""
                 })
-            else:
-                monitoring_data.append({
-                    "supplier_name": row["supplier_name"],
-                    "monitoring_item": "",
-                    "monitoring_value": "",
-                    "warning_status": False,
-                    "warning_method": "",
-                    "receiver": row['contact_person'] if 'contact_person' in row else ""
-                })
+            # else:
+            #     monitoring_data.append({
+            #         "supplier_name": row["supplier_name"],
+            #         "monitoring_item": "",
+            #         "monitoring_value": "",
+            #         "warning_status": False,
+            #         "warning_method": "",
+            #         "receiver": row['contact_person'] if 'contact_person' in row else ""
+            #     })
+
+        result_df = pd.DataFrame(monitoring_data,
+                                 columns=["supplier_name", "monitoring_item", "monitoring_value", "warning_status",
+                                          "warning_method", "receiver"])
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
 
