@@ -311,7 +311,7 @@ def ss_compare_eval_fn(
     logging.info(f"读取规则方数据成功")
 
     logging.info(f"联合处理数据")
-    result_df = spu(process_model)(order_df, supplier_df, model_df, supplier)
+    result_df = spu(process_model)(order_df.to(spu), supplier_df.to(spu), model_df.to(spu), supplier.to(spu))
     logging.info(f"联合处理数据成功")
 
     if data_party in receiver_parties:
