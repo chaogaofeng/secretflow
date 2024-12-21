@@ -97,6 +97,26 @@ def process_model(order_df, supplier_df, model_df):
     logging.info(f"两方处理数据成功 {len(result_df)}")
     return result_df
 
+def save_ori_file(df, path, feature, url, task_id):
+    if feature:
+        df = df[feature]
+    df.to_csv(path, index=False)
+    if url:
+        logging.info(f"网络请求 {url} ...")
+        try:
+            payload = {
+                'task_id': task_id,
+                "params": df.to_json(orient="records")
+            }
+            response = requests.post(url, json=payload, timeout=60)
+            if response.status_code == 200:
+                logging.info(f"网络请求 {url} 成功")
+            else:
+                raise RuntimeError(f"网络请求 {url} 失败, code {response.status_code}")
+        except Exception as e:
+            raise RuntimeError(f"网络请求 {url} 失败, {e}")
+    return df
+
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -125,5 +145,5 @@ if __name__ == '__main__':
     result_df = process_model(order_df, supplier_df, model_df)
     logging.info(f"联合处理数据成功")
 
-    logging.info(result_df)
+    save_ori_file(result_df, "qualified_suppliers.csv", None, f"{data_endpoint}/tmpc/data/upload/?type=qualified_suppliers", 'task_qualified_suppliers')
     

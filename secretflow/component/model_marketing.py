@@ -258,6 +258,26 @@ def ss_compare_eval_fn(
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
 
+    def save_ori_file(df, path, feature, url, task_id):
+        if feature:
+            df = df[feature]
+        df.to_csv(path, index=False)
+        if url:
+            logging.info(f"网络请求 {url} ...")
+            try:
+                payload = {
+                    'task_id': task_id,
+                    "params": df.to_json(orient="records")
+                }
+                response = requests.post(url, json=payload, timeout=60)
+                if response.status_code == 200:
+                    logging.info(f"网络请求 {url} 成功")
+                else:
+                    raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
+            except Exception as e:
+                raise CompEvalError(f"网络请求 {url} 失败, {e}")
+        return df
+
     logging.info(f"读取订单数据")
     order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
     logging.info(f"读取订单数据成功")
@@ -282,35 +302,17 @@ def ss_compare_eval_fn(
     result_df = spu(process_model)(order_df, supplier_df, model_df)
     logging.info(f"联合处理数据成功")
 
-    def save_ori_file(df, path, feature, url):
-        df = df[feature]
-        df.to_csv(path, index=False)
-        if url:
-            logging.info(f"网络请求 {url} ...")
-            try:
-                payload = {
-                    'task_id': task_id,
-                    "params": df.to_json(orient="records")
-                }
-                response = requests.post(url, json=payload, timeout=60)
-                if response.status_code == 200:
-                    logging.info(f"网络请求 {url} 成功")
-                else:
-                    raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
-            except Exception as e:
-                raise CompEvalError(f"网络请求 {url} 失败, {e}")
-
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
         logging.info(f"数据方输出文件 {data_output_csv_filename}")
         wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_feature,
-                                     f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
+                                     f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers'), task_id)
         logging.info(f"数据方输出输出文件成功 {data_output_csv_filename}")
     if rule_party in receiver_parties:
         rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
         logging.info(f"规则方输出文件 {rule_output_csv_filename}")
         wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_feature,
-                                     f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
+                                     f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers'), task_id)
         logging.info(f"规则方输出文件成功 {rule_output_csv_filename}")
 
     imeta = IndividualTable()

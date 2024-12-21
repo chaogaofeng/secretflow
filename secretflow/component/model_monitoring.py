@@ -290,32 +290,9 @@ def ss_compare_eval_fn(
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
 
-    logging.info(f"读取订单数据")
-    order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
-    logging.info(f"读取订单数据成功")
-
-    logging.info(f"读取供应商数据")
-    supplier_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier"))
-    logging.info(f"读取供应商数据成功")
-
-    logging.info(f"读取模型数据")
-    model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
-    logging.info(f"读取模型数据成功")
-
-    logging.info(f"读取数据方数据")
-    data_df = wait(data_pyu(read_data)(input_path[data_party]))
-    logging.info(f"读取数据方数据成功")
-
-    logging.info(f"读取规则方数据")
-    rule_df = wait(rule_pyu(read_data)(input_path[rule_party]))
-    logging.info(f"读取规则方数据成功")
-
-    logging.info(f"联合处理数据")
-    result_df = spu(process_model)(order_df, supplier_df, model_df)
-    logging.info(f"联合处理数据成功")
-
-    def save_ori_file(df, path, feature, url):
-        df = df[feature]
+    def save_ori_file(df, path, feature, url, task_id):
+        if feature:
+            df = df[feature]
         df.to_csv(path, index=False)
         if url:
             logging.info(f"网络请求 {url} ...")
@@ -331,18 +308,43 @@ def ss_compare_eval_fn(
                     raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
             except Exception as e:
                 raise CompEvalError(f"网络请求 {url} 失败, {e}")
+        return df
+
+    logging.info(f"读取订单数据")
+    order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
+    logging.info(f"读取订单数据成功")
+
+    logging.info(f"读取供应商数据")
+    supplier_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier"))
+    logging.info(f"读取供应商数据成功")
+
+    logging.info(f"读取模型数据")
+    model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=loan_follow_up"))
+    logging.info(f"读取模型数据成功")
+
+    logging.info(f"读取数据方数据")
+    data_df = wait(data_pyu(read_data)(input_path[data_party]))
+    logging.info(f"读取数据方数据成功")
+
+    logging.info(f"读取规则方数据")
+    rule_df = wait(rule_pyu(read_data)(input_path[rule_party]))
+    logging.info(f"读取规则方数据成功")
+
+    logging.info(f"联合处理数据")
+    result_df = spu(process_model)(order_df, supplier_df, model_df)
+    logging.info(f"联合处理数据成功")
 
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
         logging.info(f"数据方输出文件 {data_output_csv_filename}")
-        wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_feature,
-                                     f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
+        df = wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_feature,
+                                     f'{data_endpoint}/tmpc/model/update/?type=loan_follow_up'), task_id)
         logging.info(f"数据方输出输出文件成功 {data_output_csv_filename}")
     if rule_party in receiver_parties:
         rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
         logging.info(f"规则方输出文件 {rule_output_csv_filename}")
-        wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_feature,
-                                     f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers'))
+        df = wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_feature,
+                                     f'{rule_endpoint}/tmpc/model/update/?type=loan_follow_up'), task_id)
         logging.info(f"规则方输出文件成功 {rule_output_csv_filename}")
 
     imeta = IndividualTable()
