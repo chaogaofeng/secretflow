@@ -219,7 +219,7 @@ def ss_compare_eval_fn(
         logging.info(f"处理订单数据成功。数量为: {len(processed_df)}")
         return processed_df
 
-    def process_model(order_df, supplier_df, model_df):
+    def process_model(order_df, supplier_df, model_df, rule_df):
         logging.info(f"两方处理数据")
         if 'order_date' not in order_df.columns:
             raise CompEvalError("order_date is not in order file")
@@ -255,26 +255,26 @@ def ss_compare_eval_fn(
         #         x["total_order_amount"] < total_order_amount) else False,
         #                                             axis=1)
 
-        monitoring_data = []
+        data = []
         for _, row in result_df.iterrows():
             # 添加供应商评分监测
             if row["latest_rating"] < latest_rating:
-                monitoring_data.append({
+                data.append({
                     "supplier_name": row["supplier_name"],
                     "monitoring_item": "供应商评分",
                     "monitoring_value": row["latest_rating"],
                     "warning_status": True,
-                    "warning_method": "平台消息，短信",
-                    "receiver": row['contact_person'] if 'contact_person' in row else ""
+                    "warning_method": rule_df.iloc[0]["warning_method"] if len(rule_df) and "warning_method" in rule_df.columns else "平台消息，短信",
+                    "receiver": rule_df.iloc[0]["receiver"] if len(rule_df) and "receiver" in rule_df.columns else ""
                 })
             elif row["total_order_amount"] < total_order_amount:
-                monitoring_data.append({
+                data.append({
                     "supplier_name": row["supplier_name"],
                     "monitoring_item": f"供应商近{months}个月与核企累计订单金额",
                     "monitoring_value": row["latest_rating"],
                     "warning_status": True,
-                    "warning_method": "平台消息，短信",
-                    "receiver": row['contact_person'] if 'contact_person' in row else ""
+                    "warning_method": rule_df.iloc[0]["warning_method"] if len(rule_df) and "warning_method" in rule_df.columns else "平台消息，短信",
+                    "receiver": rule_df.iloc[0]["receiver"] if len(rule_df) and "receiver" in rule_df.columns else ""
                 })
             # else:
             #     monitoring_data.append({
@@ -286,7 +286,7 @@ def ss_compare_eval_fn(
             #         "receiver": row['contact_person'] if 'contact_person' in row else ""
             #     })
 
-        result_df = pd.DataFrame(monitoring_data,
+        result_df = pd.DataFrame(data,
                                  columns=["supplier_name", "monitoring_item", "monitoring_value", "warning_status",
                                           "warning_method", "receiver"])
         logging.info(f"两方处理数据成功 {len(result_df)}")
@@ -334,20 +334,22 @@ def ss_compare_eval_fn(
     logging.info(f"读取规则方数据成功")
 
     logging.info(f"联合处理数据")
-    result_df = spu(process_model)(order_df, supplier_df, model_df)
+    result_df = spu(process_model)(order_df, supplier_df, model_df, rule_df)
     logging.info(f"联合处理数据成功")
 
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
         logging.info(f"数据方输出文件")
-        df = wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_feature,
-                                     f'{data_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id))
+        data_result_df = result_df.to(data_pyu)
+        df = wait(data_pyu(save_ori_file)(data_result_df, data_output_csv_filename, data_input_feature,
+                                          f'{data_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id))
         logging.info(f"数据方输出输出文件成功")
     if rule_party in receiver_parties:
         rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
         logging.info(f"规则方输出文件")
-        df = wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_feature,
-                                     f'{rule_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id))
+        rule_result_df = result_df.to(rule_pyu)
+        df = wait(rule_pyu(save_ori_file)(rule_result_df, rule_output_csv_filename, rule_input_feature,
+                                          f'{rule_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id))
         logging.info(f"规则方输出文件成功")
 
     imeta = IndividualTable()
