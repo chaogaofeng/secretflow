@@ -230,26 +230,26 @@ def ss_compare_eval_fn(
 
     def process_model(order_df, supplier_df, model_df, supplier):
         logging.info(f"两方处理数据")
-        if 'order_date' not in order_df.columns:
-            raise CompEvalError("order_date is not in order file")
-        if 'order_amount_tax_included' not in order_df.columns:
-            raise CompEvalError("order_amount_tax_included is not in order file")
-        if 'supplier_name' not in order_df.columns:
-            raise CompEvalError("supplier_name is not in order file")
-
-        if 'supplier_name' not in supplier_df.columns:
-            raise CompEvalError("supplier_name is not in supplier file")
-        if 'cooperation_duration' not in supplier_df.columns:
-            raise CompEvalError("cooperation_duration is not in supplier file")
-        if 'latest_rating' not in supplier_df.columns:
-            raise CompEvalError("latest_rating is not in supplier file")
-
-        if 'cooperation_duration' not in model_df.columns:
-            raise CompEvalError("cooperation_duration is not in model file")
-        if 'latest_rating' not in model_df.columns:
-            raise CompEvalError("latest_rating is not in model file")
-        if 'total_order_amount' not in model_df.columns:
-            raise CompEvalError("total_order_amount is not in model file")
+        # if 'order_date' not in order_df.columns:
+        #     raise CompEvalError("order_date is not in order file")
+        # if 'order_amount_tax_included' not in order_df.columns:
+        #     raise CompEvalError("order_amount_tax_included is not in order file")
+        # if 'supplier_name' not in order_df.columns:
+        #     raise CompEvalError("supplier_name is not in order file")
+        #
+        # if 'supplier_name' not in supplier_df.columns:
+        #     raise CompEvalError("supplier_name is not in supplier file")
+        # if 'cooperation_duration' not in supplier_df.columns:
+        #     raise CompEvalError("cooperation_duration is not in supplier file")
+        # if 'latest_rating' not in supplier_df.columns:
+        #     raise CompEvalError("latest_rating is not in supplier file")
+        #
+        # if 'cooperation_duration' not in model_df.columns:
+        #     raise CompEvalError("cooperation_duration is not in model file")
+        # if 'latest_rating' not in model_df.columns:
+        #     raise CompEvalError("latest_rating is not in model file")
+        # if 'total_order_amount' not in model_df.columns:
+        #     raise CompEvalError("total_order_amount is not in model file")
 
         cooperation_duration = float(model_df.iloc[0]["cooperation_duration"])
         latest_rating = float(model_df.iloc[0]["latest_rating"])
