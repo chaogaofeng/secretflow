@@ -259,6 +259,7 @@ def ss_compare_eval_fn(
     def save_ori_file(df, path, feature, url, task_id):
         if feature:
             df = df[feature]
+        logging.info(f"保存文件 {path}")
         df.to_csv(path, index=False)
         if url:
             logging.info(f"网络请求 {url} ...")
@@ -302,16 +303,16 @@ def ss_compare_eval_fn(
 
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
-        logging.info(f"数据方输出文件 {data_output_csv_filename}")
+        logging.info(f"数据方输出文件")
         wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_feature,
-                                     f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers'), task_id)
-        logging.info(f"数据方输出输出文件成功 {data_output_csv_filename}")
+                                     f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
+        logging.info(f"数据方输出输出文件成功")
     if rule_party in receiver_parties:
         rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
-        logging.info(f"规则方输出文件 {rule_output_csv_filename}")
+        logging.info(f"规则方输出文件")
         wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_feature,
-                                     f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers'), task_id)
-        logging.info(f"规则方输出文件成功 {rule_output_csv_filename}")
+                                     f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
+        logging.info(f"规则方输出文件成功")
 
     imeta = IndividualTable()
     assert data_input.meta.Unpack(imeta)
