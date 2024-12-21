@@ -304,13 +304,15 @@ def ss_compare_eval_fn(
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
         logging.info(f"数据方输出文件")
-        wait(data_pyu(save_ori_file)(result_df, data_output_csv_filename, data_input_feature,
+        data_result_df = result_df.to(data_pyu)
+        wait(data_pyu(save_ori_file)(data_result_df, data_output_csv_filename, data_input_feature,
                                      f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
         logging.info(f"数据方输出输出文件成功")
     if rule_party in receiver_parties:
         rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
         logging.info(f"规则方输出文件")
-        wait(rule_pyu(save_ori_file)(result_df, rule_output_csv_filename, rule_input_feature,
+        rule_result_df = result_df.to(rule_pyu)
+        wait(rule_pyu(save_ori_file)(rule_result_df, rule_output_csv_filename, rule_input_feature,
                                      f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
         logging.info(f"规则方输出文件成功")
 

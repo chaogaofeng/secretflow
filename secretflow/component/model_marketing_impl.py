@@ -145,5 +145,5 @@ if __name__ == '__main__':
     result_df = process_model(order_df, supplier_df, model_df)
     logging.info(f"联合处理数据成功")
 
-    save_ori_file(result_df, "model_qualified_suppliers.csv", None, f"{data_endpoint}/tmpc/model/update/?type=qualified_suppliers", 'task_qualified_suppliers')
+    save_ori_file(result_df, "model_marketing.csv", None, f"{data_endpoint}/tmpc/model/update/?type=qualified_suppliers", 'task_qualified_suppliers')
     

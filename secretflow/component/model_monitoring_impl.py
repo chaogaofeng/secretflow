@@ -182,5 +182,5 @@ if __name__ == '__main__':
     result_df = process_model(order_df, supplier_df, model_df)
     logging.info(f"联合处理数据成功")
 
-    save_ori_file(result_df, "model_loan_follow_up.csv", None,
+    save_ori_file(result_df, "model_monitoring.csv", None,
                   f"{data_endpoint}/tmpc/model/update/?type=loan_follow_up", 'task_loan_follow_up')
