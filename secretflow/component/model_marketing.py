@@ -40,6 +40,13 @@ marketing_comp.str_attr(
 )
 
 marketing_comp.str_attr(
+    name="supplier",
+    desc="suppliers of the model.",
+    is_list=True,
+    is_optional=True,
+)
+
+marketing_comp.str_attr(
     name="data_endpoint",
     desc="endpoint used to access the data service api.",
     is_list=False,
@@ -108,6 +115,7 @@ def ss_compare_eval_fn(
         *,
         ctx,
         task_id,
+        supplier,
         data_endpoint,
         rule_endpoint,
         receiver_parties,
@@ -219,7 +227,7 @@ def ss_compare_eval_fn(
         logging.info(f"处理订单数据成功。数量为: {len(processed_df)}")
         return processed_df
 
-    def process_model(order_df, supplier_df, model_df):
+    def process_model(order_df, supplier_df, model_df, supplier):
         logging.info(f"两方处理数据")
         if 'order_date' not in order_df.columns:
             raise CompEvalError("order_date is not in order file")
@@ -248,6 +256,10 @@ def ss_compare_eval_fn(
         months = 12
         if 'months' in model_df.columns:
             months = int(model_df.iloc[0]["months"])
+
+        if supplier:
+            order_df = order_df[order_df["supplier_name"].isin(supplier)]
+            supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
         order_df_processed = process_order(order_df, months=months)
         result_df = supplier_df.merge(order_df_processed, on="supplier_name")
         result_df["is_qualified"] = result_df.apply(lambda x: True if (
@@ -298,7 +310,7 @@ def ss_compare_eval_fn(
     logging.info(f"读取规则方数据成功")
 
     logging.info(f"联合处理数据")
-    result_df = spu(process_model)(order_df, supplier_df, model_df)
+    result_df = spu(process_model)(order_df, supplier_df, model_df, supplier)
     logging.info(f"联合处理数据成功")
 
     if data_party in receiver_parties:

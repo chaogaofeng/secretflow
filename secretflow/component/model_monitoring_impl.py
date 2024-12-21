@@ -59,7 +59,7 @@ def process_order(df, months=12):
     return processed_df
 
 
-def process_model(order_df, supplier_df, model_df):
+def process_model(order_df, supplier_df, model_df, supplier):
     logging.info(f"两方处理数据")
     if 'order_date' not in order_df.columns:
         raise RuntimeError("order_date is not in order file")
@@ -90,6 +90,10 @@ def process_model(order_df, supplier_df, model_df):
     months = 12
     if 'months' in model_df.columns:
         months = int(model_df.iloc[0]["months"])
+
+    if supplier:
+        order_df = order_df[order_df["supplier_name"].isin(supplier)]
+        supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
     order_df_processed = process_order(order_df, months=months)
     result_df = supplier_df.merge(order_df_processed, on="supplier_name")
     # result_df["warning_status"] = result_df.apply(lambda x: True if (
@@ -179,7 +183,7 @@ if __name__ == '__main__':
     logging.info(f"读取模型数据成功")
 
     logging.info(f"联合处理数据")
-    result_df = process_model(order_df, supplier_df, model_df)
+    result_df = process_model(order_df, supplier_df, model_df, [])
     logging.info(f"联合处理数据成功")
 
     save_ori_file(result_df, "model_monitoring.csv", None,
