@@ -43,7 +43,7 @@ marketing_comp.str_attr(
     name="supplier",
     desc="suppliers of the model.",
     is_list=True,
-    is_optional=True,
+    is_optional=False,
     default_value=[]
 )
 
