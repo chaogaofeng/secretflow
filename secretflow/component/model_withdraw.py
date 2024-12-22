@@ -25,50 +25,50 @@ from secretflow.spec.v1.data_pb2 import (
     TableSchema,
 )
 
-monitoring_comp = Component(
-    name="monitoring",
+withdraw_comp = Component(
+    name="withdraw",
     domain="user",
     version="0.0.1",
-    desc="""monitoring model rule calculation""",
+    desc="""withdraw model rule calculation""",
 )
 
-monitoring_comp.str_attr(
+withdraw_comp.str_attr(
     name="task_id",
     desc="task id of the model.",
     is_list=False,
     is_optional=False,
 )
 
-monitoring_comp.str_attr(
-    name="supplier",
-    desc="suppliers of the model.",
+withdraw_comp.str_attr(
+    name="order_numer",
+    desc="order numers of the model.",
     is_list=True,
     is_optional=True,
     default_value=[]
 )
 
-monitoring_comp.str_attr(
+withdraw_comp.str_attr(
     name="data_endpoint",
     desc="endpoint used to access the data service api.",
     is_list=False,
     is_optional=False,
 )
 
-monitoring_comp.str_attr(
+withdraw_comp.str_attr(
     name="rule_endpoint",
     desc="endpoint used to access the rule service api.",
     is_list=False,
     is_optional=False,
 )
 
-monitoring_comp.party_attr(
+withdraw_comp.party_attr(
     name="receiver_parties",
     desc="Party names of receiver for result, all party will be receivers default.",
     list_min_length_inclusive=0,
     list_max_length_inclusive=2,
 )
 
-monitoring_comp.io(
+withdraw_comp.io(
     io_type=IoType.INPUT,
     name="data_input",
     desc="Individual table for data provider",
@@ -82,7 +82,7 @@ monitoring_comp.io(
     ],
 )
 
-monitoring_comp.io(
+withdraw_comp.io(
     io_type=IoType.INPUT,
     name="rule_input",
     desc="Individual table for rule provider",
@@ -96,14 +96,14 @@ monitoring_comp.io(
     ],
 )
 
-monitoring_comp.io(
+withdraw_comp.io(
     io_type=IoType.OUTPUT,
     name="data_output",
     desc="Output for data",
     types=[DistDataType.INDIVIDUAL_TABLE],
 )
 
-monitoring_comp.io(
+withdraw_comp.io(
     io_type=IoType.OUTPUT,
     name="rule_output",
     desc="Output for data",
@@ -111,12 +111,12 @@ monitoring_comp.io(
 )
 
 
-@monitoring_comp.eval_fn
+@withdraw_comp.eval_fn
 def ss_compare_eval_fn(
         *,
         ctx,
         task_id,
-        supplier,
+        order_number,
         data_endpoint,
         rule_endpoint,
         receiver_parties,
@@ -205,110 +205,92 @@ def ss_compare_eval_fn(
         logging.info(f"网络请求 {url} 成功。 数量为: {len(items)}")
         return df
 
-    def process_order(df, months=12):
-        logging.info(f"处理订单数据")
-
-        # 转换日期列
-        df["order_date"] = pd.to_datetime(df["order_date"])
-
-        # 获取当前日期，并计算开始日期
-        current_date = pd.Timestamp.now().normalize()
-        start_date = current_date - pd.DateOffset(months=months)
-
-        # 确保金额列是数值类型
-        df["order_amount_tax_included"] = pd.to_numeric(df["order_amount_tax_included"], errors="coerce")
-
-        # 筛选最近的订单
-        df_recent = df[(df["order_date"] >= start_date) & (df["order_date"] <= current_date)]
-
-        # 按供应商分组计算累计金额
-        processed_df = df_recent.groupby("supplier_name")["order_amount_tax_included"].sum().reset_index()
-        processed_df.rename(columns={"order_amount_tax_included": f"total_order_amount"}, inplace=True)
-
-        logging.info(f"处理订单数据成功。数量为: {len(processed_df)}")
-        return processed_df
-
-    def process_model(order_df, supplier_df, model_df, supplier):
+    def process_model(order_df, invoice_df, receipt_df, voucher_df, model_df, order_number):
         logging.info(f"两方处理数据")
-        if 'order_date' not in order_df.columns:
-            raise CompEvalError("order_date is not in order file")
+        if 'order_number' not in order_df.columns:
+            raise RuntimeError("order_number is not in order file")
         if 'order_amount_tax_included' not in order_df.columns:
-            raise CompEvalError("order_amount_tax_included is not in order file")
+            raise RuntimeError("order_amount_tax_included is not in order file")
         if 'supplier_name' not in order_df.columns:
-            raise CompEvalError("supplier_name is not in order file")
+            raise RuntimeError("supplier_name is not in order file")
+        order_df["order_amount_tax_included"] = pd.to_numeric(order_df["order_amount_tax_included"], errors="coerce")
 
-        if 'supplier_name' not in supplier_df.columns:
-            raise CompEvalError("supplier_name is not in supplier file")
-        # if 'cooperation_duration' not in supplier_df.columns:
-        #     raise CompEvalError("cooperation_duration is not in supplier file")
-        if 'latest_rating' not in supplier_df.columns:
-            raise CompEvalError("latest_rating is not in supplier file")
+        if 'contract_number' not in invoice_df.columns:
+            raise RuntimeError("contract_number is not in invoice file")
+        if 'total_amount_with_tax' not in invoice_df.columns:
+            raise RuntimeError("total_amount_with_tax is not in invoice file")
+        invoice_df.rename(columns={"contract_number": "order_number"}, inplace=True)
+        invoice_df["total_amount_with_tax"] = pd.to_numeric(invoice_df["total_amount_with_tax"], errors="coerce")
 
-        # if 'cooperation_duration' not in model_df.columns:
-        #     raise CompEvalError("cooperation_duration is not in model file")
-        if 'latest_rating' not in model_df.columns:
-            raise CompEvalError("latest_rating is not in model file")
-        if 'total_order_amount' not in model_df.columns:
-            raise CompEvalError("total_order_amount is not in model file")
+        if 'order_number' not in receipt_df.columns:
+            raise RuntimeError("order_number is not in receipt file")
+        if 'receipt_amount_tax_included' not in receipt_df.columns:
+            raise RuntimeError("receipt_amount_tax_included is not in receipt file")
+        receipt_df["receipt_amount_tax_included"] = pd.to_numeric(receipt_df["receipt_amount_tax_included"],
+                                                                  errors="coerce")
 
-        # cooperation_duration = float(model_df.iloc[0]["cooperation_duration"])
-        latest_rating = float(model_df.iloc[0]["latest_rating"])
-        total_order_amount = float(model_df.iloc[0]["total_order_amount"])
-        months = 12
-        if 'months' in model_df.columns:
-            months = int(model_df.iloc[0]["months"])
+        if 'contract_number' not in voucher_df.columns:
+            raise RuntimeError("contract_number is not in voucher file")
+        if 'credit_amount' not in voucher_df.columns:
+            raise RuntimeError("credit_amount is not in voucher file")
+        voucher_df.rename(columns={"contract_number": "order_number"}, inplace=True)
+        voucher_df["credit_amount"] = pd.to_numeric(voucher_df["credit_amount"], errors="coerce")
 
-        if supplier:
-            order_df = order_df[order_df["supplier_name"].isin(supplier)]
-            supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
-        order_df_processed = process_order(order_df, months=months)
-        result_df = supplier_df.merge(order_df_processed, on="supplier_name", how="left")
+        if 'financing_balance_param' not in model_df.columns:
+            raise RuntimeError("financing_balance_param is not in model file")
+        if 'delivered_uninvoiced_amount_param' not in model_df.columns:
+            raise RuntimeError("delivered_uninvoiced_amount_param is not in model file")
+        if 'undelivered_amount_param' not in model_df.columns:
+            raise RuntimeError("undelivered_amount_param is not in model file")
+
+        financing_balance_param = float(model_df.iloc[0]["financing_balance_param"])
+        delivered_uninvoiced_amount_param = float(model_df.iloc[0]["delivered_uninvoiced_amount_param"])
+        undelivered_amount_param = float(model_df.iloc[0]["undelivered_amount_param"])
+
+        # TODO
+        if order_number:
+            order_df = order_df[order_df["order_number"].isin(order_number)]
+            invoice_df = invoice_df[invoice_df["order_number"].isin(order_number)]
+            receipt_df = receipt_df[receipt_df["order_number"].isin(order_number)]
+            voucher_df = voucher_df[voucher_df["order_number"].isin(order_number)]
+        result_df = order_df.merge(invoice_df[["order_number", "total_amount_with_tax"]], on="order_number", how="left")
+        result_df = result_df.merge(voucher_df[["order_number", "credit_amount"]], on="order_number", how="left")
+        result_df = result_df.merge(receipt_df[["order_number", "receipt_amount_tax_included"]], on="order_number",
+                                    how="left")
+        result_df.fillna(
+            {"credit_amount": 0, "order_amount_tax_included": 0, "total_amount_with_tax": 0,
+             "total_amount_with_tax": 0},
+            inplace=True)
+        # result_df['approved_financing_amount'] = (result_df['credit_amount'] * 0.9
+        #                                           + (result_df['order_amount_tax_included'] - result_df['total_amount_with_tax'])*0.7
+        #                                           +(result_df['credit_amount'] - result_df['total_amount_with_tax'])*0.4).round(2)
         data = []
         for _, row in result_df.iterrows():
-            # 添加供应商评分监测
-            if row["latest_rating"] < latest_rating:
-                data.append({
-                    "supplier_name": row["supplier_name"],
-                    "monitoring_item": "供应商评分",
-                    "monitoring_value": row["latest_rating"],
-                    "warning_status": True,
-                    "warning_method": "平台消息，短信",
-                    "receiver": row['contact_person'] if 'contact_person' in row else ""
-                    # "warning_method": rule_df.iloc[0]["warning_method"] if len(rule_df) and "warning_method" in rule_df.columns else "平台消息，短信",
-                    # "receiver": rule_df.iloc[0]["receiver"] if len(rule_df) and "receiver" in rule_df.columns else ""
-                })
-            elif row["total_order_amount"] < total_order_amount:
-                data.append({
-                    "supplier_name": row["supplier_name"],
-                    "monitoring_item": f"供应商近{months}个月与核企累计订单金额",
-                    "monitoring_value": row["latest_rating"],
-                    "warning_status": True,
-                    "warning_method": "平台消息，短信",
-                    "receiver": row['contact_person'] if 'contact_person' in row else ""
-                    # "warning_method": rule_df.iloc[0]["warning_method"] if len(rule_df) and "warning_method" in rule_df.columns else "平台消息，短信",
-                    # "receiver": rule_df.iloc[0]["receiver"] if len(rule_df) and "receiver" in rule_df.columns else ""
-                })
-            # else:
-            #     monitoring_data.append({
-            #         "supplier_name": row["supplier_name"],
-            #         "monitoring_item": "",
-            #         "monitoring_value": "",
-            #         "warning_status": False,
-            #         "warning_method": "",
-            #         "receiver": row['contact_person'] if 'contact_person' in row else ""
-            #     })
+            approved_financing_amount = round(row['credit_amount'] * 0.9
+                                              + (row['order_amount_tax_included'] - row['total_amount_with_tax']) * 0.7
+                                              + (row['credit_amount'] - row['total_amount_with_tax']) * 0.4, 2)
+            data.append({
+                "supplier_name": row["supplier_name"],
+                "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
+                "order_number": row["order_number"],
+                "order_amount": row["order_amount_tax_included"],
+                "financing_amount": "",
+                "application_date": "",
+                "status": "",
+                "financing_balance": approved_financing_amount,
+            })
 
         result_df = pd.DataFrame(data,
-                                 columns=["supplier_name", "monitoring_item", "monitoring_value", "warning_status",
-                                          "warning_method", "receiver"])
+                                 columns=["supplier_name", "core_enterprise_name", "order_number", "order_amount",
+                                          "financing_amount", "application_date", "status", "financing_balance"])
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
 
     def save_ori_file(df, path, feature, url, task_id):
         if feature:
             df = df[feature]
+        logging.info(f"保存文件 {path}")
         df.to_csv(path, index=False)
-        logging.info(f"保存文件到 {path}")
         if url:
             logging.info(f"网络请求 {url} ...")
             try:
@@ -325,39 +307,47 @@ def ss_compare_eval_fn(
                 raise CompEvalError(f"网络请求 {url} 失败, {e}")
         return df
 
-    def process_one(task_id, data_endpoint, rule_endpoint, supplier, data_input_feature, rule_input_feature):
+    def process_one(task_id, data_endpoint, rule_endpoint, order_number, data_input_feature, rule_input_feature):
         logging.info(f"读取订单数据")
         order_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=order")
         logging.info(f"读取订单数据成功")
 
-        logging.info(f"读取供应商数据")
-        supplier_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=supplier")
-        logging.info(f"读取供应商数据成功")
+        logging.info(f"读取发票数据")
+        invoice_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=invoice")
+        logging.info(f"读取发票数据成功")
+
+        logging.info(f"读取入库数据")
+        receipt_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=warehouse_receipt")
+        logging.info(f"读取入库数据成功")
+
+        logging.info(f"读取应付数据")
+        voucher_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=voucher")
+        logging.info(f"读取应付数据成功")
 
         logging.info(f"读取模型数据")
-        model_df = read_endpoint(f"{rule_endpoint}/tmpc/model/params/?type=loan_follow_up")
+        model_df = read_endpoint(f"{rule_endpoint}/tmpc/model/params/?type=financing_application")
         logging.info(f"读取模型数据成功")
 
         logging.info(f"联合处理数据")
-        result_df = process_model(order_df, supplier_df, model_df, supplier)
+        result_df = process_model(order_df, invoice_df, receipt_df, voucher_df, model_df, order_number)
         logging.info(f"联合处理数据成功")
 
         if data_party in receiver_parties:
             data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
             logging.info(f"数据方输出文件")
             save_ori_file(result_df, data_output_csv_filename, data_input_feature,
-                                         f'{data_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id)
+                                         f'{data_endpoint}/tmpc/model/update/?type=financing_application', task_id)
             logging.info(f"数据方输出输出文件成功")
         if rule_party in receiver_parties:
             rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
             logging.info(f"规则方输出文件")
             save_ori_file(result_df, rule_output_csv_filename, rule_input_feature,
-                                         f'{rule_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id)
+                                         f'{rule_endpoint}/tmpc/model/update/?type=financing_application', task_id)
             logging.info(f"规则方输出文件成功")
 
         return result_df
 
-    wait(data_pyu(process_one)(task_id, data_endpoint, rule_endpoint, supplier, data_input_feature, rule_input_feature))
+    wait(data_pyu(process_one)(task_id, data_endpoint, rule_endpoint, order_number, data_input_feature, rule_input_feature))
 
     # logging.info(f"读取订单数据")
     # order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
@@ -368,7 +358,7 @@ def ss_compare_eval_fn(
     # logging.info(f"读取供应商数据成功")
     #
     # logging.info(f"读取模型数据")
-    # model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=loan_follow_up"))
+    # model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
     # logging.info(f"读取模型数据成功")
 
     # logging.info(f"读取数据方数据")
@@ -382,20 +372,20 @@ def ss_compare_eval_fn(
     # logging.info(f"联合处理数据")
     # result_df = spu(process_model)(order_df, supplier_df, model_df, supplier)
     # logging.info(f"联合处理数据成功")
-    #
+
     # if data_party in receiver_parties:
     #     data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
     #     logging.info(f"数据方输出文件")
     #     data_result_df = result_df.to(data_pyu)
-    #     df = wait(data_pyu(save_ori_file)(data_result_df, data_output_csv_filename, data_input_feature,
-    #                                       f'{data_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id))
+    #     wait(data_pyu(save_ori_file)(data_result_df, data_output_csv_filename, data_input_feature,
+    #                                  f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
     #     logging.info(f"数据方输出输出文件成功")
     # if rule_party in receiver_parties:
     #     rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
     #     logging.info(f"规则方输出文件")
     #     rule_result_df = result_df.to(rule_pyu)
-    #     df = wait(rule_pyu(save_ori_file)(rule_result_df, rule_output_csv_filename, rule_input_feature,
-    #                                       f'{rule_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id))
+    #     wait(rule_pyu(save_ori_file)(rule_result_df, rule_output_csv_filename, rule_input_feature,
+    #                                  f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
     #     logging.info(f"规则方输出文件成功")
 
     imeta = IndividualTable()
