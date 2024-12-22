@@ -235,26 +235,26 @@ def ss_compare_eval_fn(
 
     def process_model(order_df, supplier_df, model_df, supplier):
         logging.info(f"两方处理数据")
-        # if 'order_date' not in order_df.columns:
-        #     raise CompEvalError("order_date is not in order file")
-        # if 'order_amount_tax_included' not in order_df.columns:
-        #     raise CompEvalError("order_amount_tax_included is not in order file")
-        # if 'supplier_name' not in order_df.columns:
-        #     raise CompEvalError("supplier_name is not in order file")
-        #
-        # if 'supplier_name' not in supplier_df.columns:
-        #     raise CompEvalError("supplier_name is not in supplier file")
-        # if 'cooperation_duration' not in supplier_df.columns:
-        #     raise CompEvalError("cooperation_duration is not in supplier file")
-        # if 'latest_rating' not in supplier_df.columns:
-        #     raise CompEvalError("latest_rating is not in supplier file")
-        #
-        # if 'cooperation_duration' not in model_df.columns:
-        #     raise CompEvalError("cooperation_duration is not in model file")
-        # if 'latest_rating' not in model_df.columns:
-        #     raise CompEvalError("latest_rating is not in model file")
-        # if 'total_order_amount' not in model_df.columns:
-        #     raise CompEvalError("total_order_amount is not in model file")
+        if 'order_date' not in order_df.columns:
+            raise CompEvalError("order_date is not in order file")
+        if 'order_amount_tax_included' not in order_df.columns:
+            raise CompEvalError("order_amount_tax_included is not in order file")
+        if 'supplier_name' not in order_df.columns:
+            raise CompEvalError("supplier_name is not in order file")
+
+        if 'supplier_name' not in supplier_df.columns:
+            raise CompEvalError("supplier_name is not in supplier file")
+        if 'cooperation_duration' not in supplier_df.columns:
+            raise CompEvalError("cooperation_duration is not in supplier file")
+        if 'latest_rating' not in supplier_df.columns:
+            raise CompEvalError("latest_rating is not in supplier file")
+
+        if 'cooperation_duration' not in model_df.columns:
+            raise CompEvalError("cooperation_duration is not in model file")
+        if 'latest_rating' not in model_df.columns:
+            raise CompEvalError("latest_rating is not in model file")
+        if 'total_order_amount' not in model_df.columns:
+            raise CompEvalError("total_order_amount is not in model file")
 
         cooperation_duration = float(model_df.iloc[0]["cooperation_duration"])
         latest_rating = float(model_df.iloc[0]["latest_rating"])
@@ -295,17 +295,50 @@ def ss_compare_eval_fn(
                 raise CompEvalError(f"网络请求 {url} 失败, {e}")
         return df
 
-    logging.info(f"读取订单数据")
-    order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
-    logging.info(f"读取订单数据成功")
+    def process_one(task_id, data_endpoint, rule_endpoint, supplier, data_input_feature, rule_input_feature):
+        logging.info(f"读取订单数据")
+        order_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=order")
+        logging.info(f"读取订单数据成功")
 
-    logging.info(f"读取供应商数据")
-    supplier_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier"))
-    logging.info(f"读取供应商数据成功")
+        logging.info(f"读取供应商数据")
+        supplier_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=supplier")
+        logging.info(f"读取供应商数据成功")
 
-    logging.info(f"读取模型数据")
-    model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
-    logging.info(f"读取模型数据成功")
+        logging.info(f"读取模型数据")
+        model_df = read_endpoint(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers")
+        logging.info(f"读取模型数据成功")
+
+        logging.info(f"联合处理数据")
+        result_df = process_model(order_df, supplier_df, model_df, supplier)
+        logging.info(f"联合处理数据成功")
+
+        if data_party in receiver_parties:
+            data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
+            logging.info(f"数据方输出文件")
+            save_ori_file(result_df, data_output_csv_filename, data_input_feature,
+                                         f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id)
+            logging.info(f"数据方输出输出文件成功")
+        if rule_party in receiver_parties:
+            rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
+            logging.info(f"规则方输出文件")
+            rule_result_df = result_df.to(rule_pyu)
+            save_ori_file(rule_result_df, rule_output_csv_filename, rule_input_feature,
+                                         f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id)
+            logging.info(f"规则方输出文件成功")
+
+        return result_df
+
+    # logging.info(f"读取订单数据")
+    # order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
+    # logging.info(f"读取订单数据成功")
+    #
+    # logging.info(f"读取供应商数据")
+    # supplier_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=supplier"))
+    # logging.info(f"读取供应商数据成功")
+    #
+    # logging.info(f"读取模型数据")
+    # model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
+    # logging.info(f"读取模型数据成功")
 
     # logging.info(f"读取数据方数据")
     # data_df = wait(data_pyu(read_data)(input_path[data_party]))
@@ -315,24 +348,26 @@ def ss_compare_eval_fn(
     # rule_df = wait(rule_pyu(read_data)(input_path[rule_party]))
     # logging.info(f"读取规则方数据成功")
 
-    logging.info(f"联合处理数据")
-    result_df = spu(process_model)(order_df, supplier_df, model_df, supplier)
-    logging.info(f"联合处理数据成功")
+    # logging.info(f"联合处理数据")
+    # result_df = spu(process_model)(order_df, supplier_df, model_df, supplier)
+    # logging.info(f"联合处理数据成功")
 
-    if data_party in receiver_parties:
-        data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
-        logging.info(f"数据方输出文件")
-        data_result_df = result_df.to(data_pyu)
-        wait(data_pyu(save_ori_file)(data_result_df, data_output_csv_filename, data_input_feature,
-                                     f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
-        logging.info(f"数据方输出输出文件成功")
-    if rule_party in receiver_parties:
-        rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
-        logging.info(f"规则方输出文件")
-        rule_result_df = result_df.to(rule_pyu)
-        wait(rule_pyu(save_ori_file)(rule_result_df, rule_output_csv_filename, rule_input_feature,
-                                     f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
-        logging.info(f"规则方输出文件成功")
+    # if data_party in receiver_parties:
+    #     data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
+    #     logging.info(f"数据方输出文件")
+    #     data_result_df = result_df.to(data_pyu)
+    #     wait(data_pyu(save_ori_file)(data_result_df, data_output_csv_filename, data_input_feature,
+    #                                  f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
+    #     logging.info(f"数据方输出输出文件成功")
+    # if rule_party in receiver_parties:
+    #     rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
+    #     logging.info(f"规则方输出文件")
+    #     rule_result_df = result_df.to(rule_pyu)
+    #     wait(rule_pyu(save_ori_file)(rule_result_df, rule_output_csv_filename, rule_input_feature,
+    #                                  f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
+    #     logging.info(f"规则方输出文件成功")
+
+    wait(data_pyu(process_one)(task_id, data_endpoint, rule_endpoint, supplier, data_input_feature, rule_input_feature))
 
     imeta = IndividualTable()
     assert data_input.meta.Unpack(imeta)
