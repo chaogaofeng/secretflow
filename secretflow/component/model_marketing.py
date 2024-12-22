@@ -166,11 +166,6 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
-    spu = data_pyu
-    data_pyu = data_pyu
-    rule_pyu = data_pyu
-
-
     def read_data(filepath):
         logging.info(f"读取文件{filepath} ...")
         try:
@@ -321,12 +316,13 @@ def ss_compare_eval_fn(
         if rule_party in receiver_parties:
             rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
             logging.info(f"规则方输出文件")
-            rule_result_df = result_df.to(rule_pyu)
-            save_ori_file(rule_result_df, rule_output_csv_filename, rule_input_feature,
+            save_ori_file(result_df, rule_output_csv_filename, rule_input_feature,
                                          f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id)
             logging.info(f"规则方输出文件成功")
 
         return result_df
+
+    wait(data_pyu(process_one)(task_id, data_endpoint, rule_endpoint, supplier, data_input_feature, rule_input_feature))
 
     # logging.info(f"读取订单数据")
     # order_df = wait(data_pyu(read_endpoint)(f"{data_endpoint}/tmpc/data/list/?type=order"))
@@ -366,8 +362,6 @@ def ss_compare_eval_fn(
     #     wait(rule_pyu(save_ori_file)(rule_result_df, rule_output_csv_filename, rule_input_feature,
     #                                  f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id))
     #     logging.info(f"规则方输出文件成功")
-
-    wait(data_pyu(process_one)(task_id, data_endpoint, rule_endpoint, supplier, data_input_feature, rule_input_feature))
 
     imeta = IndividualTable()
     assert data_input.meta.Unpack(imeta)
