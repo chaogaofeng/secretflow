@@ -267,6 +267,19 @@ def ss_compare_eval_fn(
         result_df["is_qualified"] = result_df.apply(lambda x: True if (
                 x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and
                 x["total_order_amount"] > total_order_amount) else False,axis=1)
+        result_df = result_df[[
+            "supplier_code",
+            "supplier_name",
+            "purchaser_name",
+            "legal_person",
+            "contact_person",
+            "contact_info",
+            "purchasing_department",
+            "salesman",
+            "cooperation_duration",
+            "latest_rating",
+            "is_qualified"
+        ]]
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
 

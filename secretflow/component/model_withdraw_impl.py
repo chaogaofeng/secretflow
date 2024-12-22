@@ -102,14 +102,14 @@ def process_model(order_df, invoice_df, receipt_df, voucher_df, model_df, order_
             "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
             "order_number": row["order_number"],
             "order_amount": row["order_amount_tax_included"],
-            "financing_amount": "",
-            "application_date": "",
+            "financing_amount": "0",
+            "application_date": "2024-12-09",
             "status": "",
-            "financing_balance": approved_financing_amount,
+            "approved_financing_amount": approved_financing_amount,
         })
 
     result_df = pd.DataFrame(data,
-                             columns=["supplier_name", "core_enterprise_name", "order_number", "order_amount","financing_amount", "application_date", "status", "financing_balance"])
+                             columns=["supplier_name", "core_enterprise_name", "order_number", "order_amount","financing_amount", "application_date", "status", "approved_financing_amount"])
     logging.info(f"两方处理数据成功 {len(result_df)}")
     return result_df
 

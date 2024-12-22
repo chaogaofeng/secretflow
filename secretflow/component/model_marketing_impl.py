@@ -100,6 +100,19 @@ def process_model(order_df, supplier_df, model_df, supplier):
             x["total_order_amount"] > total_order_amount) else False,
                                                 axis=1)
     logging.info(f"两方处理数据成功 {len(result_df)}")
+    result_df = result_df[[
+        "supplier_code",
+        "supplier_name",
+        "purchaser_name",
+        "legal_person",
+        "contact_person",
+        "contact_info",
+        "purchasing_department",
+        "salesman",
+        "cooperation_duration",
+        "latest_rating",
+        "is_qualified"
+    ]]
     return result_df
 
 def save_ori_file(df, path, feature, url, task_id):

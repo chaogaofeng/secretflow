@@ -112,7 +112,7 @@ def process_model(order_df, supplier_df, model_df, supplier):
             "supplier_name": row["supplier_name"],
             "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
             "financing_limit": financing_limit,
-            "limit_effective_date": effective_date,
+            "limit_effective_date": effective_date.strftime('%Y-%m-%d'),
             "status": True,
             "cooperating_bank": "浙商银行"
         })
