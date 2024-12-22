@@ -400,7 +400,7 @@ def ss_compare_eval_fn(
         system_info=data_input.system_info,
         data_refs=[
             DistData.DataRef(
-                uri=data_output,
+                # uri=data_output,
                 party=data_party,
                 format="csv",
             ),
@@ -420,7 +420,7 @@ def ss_compare_eval_fn(
         system_info=rule_input.system_info,
         data_refs=[
             DistData.DataRef(
-                uri=rule_output,
+                # uri=rule_output,
                 party=rule_party,
                 format="csv",
             ),
