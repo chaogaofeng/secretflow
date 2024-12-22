@@ -43,7 +43,7 @@ marketing_comp.str_attr(
     name="supplier",
     desc="suppliers of the model.",
     is_list=True,
-    is_optional=False,
+    is_optional=True,
     default_value=[]
 )
 
@@ -165,6 +165,11 @@ def ss_compare_eval_fn(
     spu = SPU(spu_config["cluster_def"], spu_config["link_desc"])
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
+
+    spu = data_pyu
+    data_pyu = data_pyu
+    rule_pyu = data_pyu
+
 
     def read_data(filepath):
         logging.info(f"读取文件{filepath} ...")
