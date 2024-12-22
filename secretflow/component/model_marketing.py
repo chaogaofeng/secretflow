@@ -307,13 +307,13 @@ def ss_compare_eval_fn(
     model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=qualified_suppliers"))
     logging.info(f"读取模型数据成功")
 
-    logging.info(f"读取数据方数据")
-    data_df = wait(data_pyu(read_data)(input_path[data_party]))
-    logging.info(f"读取数据方数据成功")
-
-    logging.info(f"读取规则方数据")
-    rule_df = wait(rule_pyu(read_data)(input_path[rule_party]))
-    logging.info(f"读取规则方数据成功")
+    # logging.info(f"读取数据方数据")
+    # data_df = wait(data_pyu(read_data)(input_path[data_party]))
+    # logging.info(f"读取数据方数据成功")
+    #
+    # logging.info(f"读取规则方数据")
+    # rule_df = wait(rule_pyu(read_data)(input_path[rule_party]))
+    # logging.info(f"读取规则方数据成功")
 
     logging.info(f"联合处理数据")
     result_df = spu(process_model)(order_df.to(spu), supplier_df.to(spu), model_df.to(spu), supplier.to(spu))

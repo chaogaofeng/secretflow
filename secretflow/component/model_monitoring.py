@@ -166,6 +166,10 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
+    spu = data_pyu
+    data_pyu = data_pyu
+    rule_pyu = data_pyu
+
     def read_data(filepath):
         logging.info(f"读取文件{filepath} ...")
         try:
@@ -337,13 +341,13 @@ def ss_compare_eval_fn(
     model_df = wait(rule_pyu(read_endpoint)(f"{rule_endpoint}/tmpc/model/params/?type=loan_follow_up"))
     logging.info(f"读取模型数据成功")
 
-    logging.info(f"读取数据方数据")
-    data_df = wait(data_pyu(read_data)(input_path[data_party]))
-    logging.info(f"读取数据方数据成功")
-
-    logging.info(f"读取规则方数据")
-    rule_df = wait(rule_pyu(read_data)(input_path[rule_party]))
-    logging.info(f"读取规则方数据成功")
+    # logging.info(f"读取数据方数据")
+    # data_df = wait(data_pyu(read_data)(input_path[data_party]))
+    # logging.info(f"读取数据方数据成功")
+    #
+    # logging.info(f"读取规则方数据")
+    # rule_df = wait(rule_pyu(read_data)(input_path[rule_party]))
+    # logging.info(f"读取规则方数据成功")
 
     logging.info(f"联合处理数据")
     result_df = spu(process_model)(order_df, supplier_df, model_df, supplier)
