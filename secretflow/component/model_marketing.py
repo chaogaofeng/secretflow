@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import pandas as pd
@@ -277,18 +278,19 @@ def ss_compare_eval_fn(
         if url:
             logging.info(f"网络请求 {url} ...")
             try:
+                params = json.loads(df.to_json(orient="records"))
                 payload = {
                     'task_id': task_id,
-                    "params": df.to_json(orient="records")
+                    "params": params
                 }
+                logging.info(f"网络请求 {url} ... {payload}")
                 response = requests.post(url, json=payload, timeout=60)
                 if response.status_code == 200:
                     logging.info(f"网络请求 {url} 成功")
                 else:
                     raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
             except Exception as e:
-                pass
-                # raise CompEvalError(f"网络请求 {url} 失败, {e}")
+                raise CompEvalError(f"网络请求 {url} 失败, {e}")
         return df
 
     def process_one(task_id, data_endpoint, rule_endpoint, supplier, data_input_feature, rule_input_feature):

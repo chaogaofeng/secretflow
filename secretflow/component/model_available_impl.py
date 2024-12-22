@@ -1,3 +1,4 @@
+import json
 import logging
 
 import pandas as pd
@@ -128,10 +129,12 @@ def save_ori_file(df, path, feature, url, task_id):
     if url:
         logging.info(f"网络请求 {url} ...")
         try:
+            params = json.loads(df.to_json(orient="records"))
             payload = {
                 'task_id': task_id,
-                "params": df.to_json(orient="records")
+                "params": params
             }
+            logging.info(f"网络请求 {url} ... {payload}")
             response = requests.post(url, json=payload, timeout=60)
             if response.status_code == 200:
                 logging.info(f"网络请求 {url} 成功")
