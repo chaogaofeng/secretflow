@@ -116,6 +116,8 @@ def create_job(job_id, initiator, max_parallelism, tasks):
                                  )
         response.raise_for_status()
         result = response.json()
+        if result['status']['code'] != 0:
+            print("create job error:", result['status']['message'])
         return result['status']['code'] == 0
     except Exception as e:
         raise RuntimeError(f"An error occurred during the API request: {e}")
@@ -202,7 +204,6 @@ def create_marketing_job(job_id, supplier=[]):
             "task_input_config": json.dumps(task_input_config),
         }
     ]
-    print(task_input_config)
     return create_job(job_id, initiator, 2, tasks)
 
 
@@ -462,5 +463,5 @@ def create_monitoring_job(job_id, supplier=[]):
 
 
 if __name__ == '__main__':
-    print(create_marketing_job('eccc10'))
-    print(query_job('eccc9'))
+    print(create_marketing_job('market02'))
+    # print(query_job('TASK-QUALIFIED_SUPPLIERS-202412200548379ZR'))

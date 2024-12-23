@@ -153,8 +153,8 @@ def ss_compare_eval_fn(
         data_party: data_path_info[data_party].uri,
         rule_party: rule_path_info[rule_party].uri,
     }
-    with ctx.tracer.trace_io():
-        download_files(ctx, uri, input_path, overwrite=False)
+    # with ctx.tracer.trace_io():
+    #     download_files(ctx, uri, input_path, overwrite=False)
 
     # get spu config from ctx
     if ctx.spu_configs is None or len(ctx.spu_configs) == 0:
