@@ -12,8 +12,8 @@ def query_job(job_id):
     :param job_id: The job ID to query
     :return: Response from the API
     """
-    if os.path.exists('./kusica.env'):
-        dotenv.load_dotenv('./kusica.env', override=True, verbose=True)
+    if os.path.exists('./kuscia.env'):
+        dotenv.load_dotenv('./kuscia.env', override=True, verbose=True)
 
     cert_root = os.getenv('KUSCIA_CERT_ROOT')
     endpoint = os.getenv("KUSCIA_API_ENDPOINT")
@@ -79,8 +79,8 @@ def create_job(job_id, initiator, max_parallelism, tasks):
     Returns:
         dict: Response from the API.
     """
-    if os.path.exists('./kusica.env'):
-        dotenv.load_dotenv('./kusica.env', override=True, verbose=True)
+    if os.path.exists('./kuscia.env'):
+        dotenv.load_dotenv('./kuscia.env', override=True, verbose=True)
 
     cert_root = os.getenv('KUSCIA_CERT_ROOT')
     endpoint = os.getenv("KUSCIA_API_ENDPOINT")
@@ -124,8 +124,8 @@ def create_job(job_id, initiator, max_parallelism, tasks):
 
 
 def create_marketing_job(job_id, supplier=[]):
-    if os.path.exists('./kusica.env'):
-        dotenv.load_dotenv('./kusica.env', override=True, verbose=True)
+    if os.path.exists('./kuscia.env'):
+        dotenv.load_dotenv('./kuscia.env', override=True, verbose=True)
 
     initiator = os.getenv('KUSCIA_INITIATOR')
     parties = os.getenv('KUSCIA_PARTIES').split(',')
@@ -208,8 +208,8 @@ def create_marketing_job(job_id, supplier=[]):
 
 
 def create_available_job(job_id, supplier=[]):
-    if os.path.exists('./kusica.env'):
-        dotenv.load_dotenv('./kusica.env', override=True, verbose=True)
+    if os.path.exists('./kuscia.env'):
+        dotenv.load_dotenv('./kuscia.env', override=True, verbose=True)
 
     initiator = os.getenv('KUSCIA_INITIATOR')
     parties = os.getenv('KUSCIA_PARTIES').split(',')
@@ -293,8 +293,8 @@ def create_available_job(job_id, supplier=[]):
 
 
 def create_withdraw_job(job_id, order_number=[]):
-    if os.path.exists('./kusica.env'):
-        dotenv.load_dotenv('./kusica.env', override=True, verbose=True)
+    if os.path.exists('./kuscia.env'):
+        dotenv.load_dotenv('./kuscia.env', override=True, verbose=True)
 
     initiator = os.getenv('KUSCIA_INITIATOR')
     parties = os.getenv('KUSCIA_PARTIES').split(',')
@@ -378,8 +378,8 @@ def create_withdraw_job(job_id, order_number=[]):
 
 
 def create_monitoring_job(job_id, supplier=[]):
-    if os.path.exists('./kusica.env'):
-        dotenv.load_dotenv('./kusica.env', override=True, verbose=True)
+    if os.path.exists('./kuscia.env'):
+        dotenv.load_dotenv('./kuscia.env', override=True, verbose=True)
 
     initiator = os.getenv('KUSCIA_INITIATOR')
     parties = os.getenv('KUSCIA_PARTIES').split(',')
@@ -463,5 +463,5 @@ def create_monitoring_job(job_id, supplier=[]):
 
 
 if __name__ == '__main__':
-    print(create_marketing_job('market02'))
+    print(create_marketing_job('TASK-QUALIFIED_SUPPLIERS-202412200548379ZT'.lower().replace('_', '-')))
     # print(query_job('TASK-QUALIFIED_SUPPLIERS-202412200548379ZR'))
