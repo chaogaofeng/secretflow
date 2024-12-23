@@ -216,11 +216,10 @@ def ss_compare_eval_fn(
             raise RuntimeError("supplier_name is not in order file")
         order_df["order_amount_tax_included"] = pd.to_numeric(order_df["order_amount_tax_included"], errors="coerce")
 
-        if 'contract_number' not in invoice_df.columns:
-            raise RuntimeError("contract_number is not in invoice file")
+        if 'order_number' not in invoice_df.columns:
+            raise RuntimeError("order_number is not in invoice file")
         if 'total_amount_with_tax' not in invoice_df.columns:
             raise RuntimeError("total_amount_with_tax is not in invoice file")
-        invoice_df.rename(columns={"contract_number": "order_number"}, inplace=True)
         invoice_df["total_amount_with_tax"] = pd.to_numeric(invoice_df["total_amount_with_tax"], errors="coerce")
 
         if 'order_number' not in receipt_df.columns:
@@ -230,11 +229,10 @@ def ss_compare_eval_fn(
         receipt_df["receipt_amount_tax_included"] = pd.to_numeric(receipt_df["receipt_amount_tax_included"],
                                                                   errors="coerce")
 
-        if 'contract_number' not in voucher_df.columns:
-            raise RuntimeError("contract_number is not in voucher file")
+        if 'order_number' not in voucher_df.columns:
+            raise RuntimeError("order_number is not in voucher file")
         if 'credit_amount' not in voucher_df.columns:
             raise RuntimeError("credit_amount is not in voucher file")
-        voucher_df.rename(columns={"contract_number": "order_number"}, inplace=True)
         voucher_df["credit_amount"] = pd.to_numeric(voucher_df["credit_amount"], errors="coerce")
 
         if 'financing_balance_param' not in model_df.columns:
