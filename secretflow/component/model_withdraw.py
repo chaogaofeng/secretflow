@@ -41,7 +41,7 @@ withdraw_comp.str_attr(
 )
 
 withdraw_comp.str_attr(
-    name="order_numer",
+    name="order_number",
     desc="order numers of the model.",
     is_list=True,
     is_optional=True,
