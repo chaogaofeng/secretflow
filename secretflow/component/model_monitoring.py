@@ -414,11 +414,11 @@ def ss_compare_eval_fn(
         type=str(DistDataType.INDIVIDUAL_TABLE),
         system_info=data_input.system_info,
         data_refs=[
-            DistData.DataRef(
-                # uri=data_output,
-                party=data_party,
-                format="csv",
-            ),
+            # DistData.DataRef(
+            #     # uri=data_output,
+            #     party=data_party,
+            #     format="csv",
+            # ),
         ],
     )
     data_output_meta = IndividualTable(
@@ -434,11 +434,11 @@ def ss_compare_eval_fn(
         type=str(DistDataType.INDIVIDUAL_TABLE),
         system_info=rule_input.system_info,
         data_refs=[
-            DistData.DataRef(
-                # uri=rule_output,
-                party=rule_party,
-                format="csv",
-            ),
+            # DistData.DataRef(
+            #     # uri=rule_output,
+            #     party=rule_party,
+            #     format="csv",
+            # ),
         ],
     )
 
