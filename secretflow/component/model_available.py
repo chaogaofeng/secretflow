@@ -312,7 +312,7 @@ def ss_compare_eval_fn(
                     raise CompEvalError(f"网络请求 {url} 失败, code {response.status_code}")
             except Exception as e:
                 logging.error(f"网络请求 {url} 失败, {e}")
-                # raise CompEvalError(f"网络请求 {url} 失败, {e}")
+                raise CompEvalError(f"网络请求 {url} 失败, {e}")
         return df
 
     def process_one(task_id, data_endpoint, rule_endpoint, supplier, data_input_feature, rule_input_feature):
