@@ -278,7 +278,7 @@ def ss_compare_eval_fn(
                 "financing_amount": "0",
                 "application_date": "2024-12-09",
                 "status": "",
-                "approved_financing_amount": approved_financing_amount,
+                "approved_financing_amount": approved_financing_amount if approved_financing_amount > 0 else 0,
             })
 
         result_df = pd.DataFrame(data,
