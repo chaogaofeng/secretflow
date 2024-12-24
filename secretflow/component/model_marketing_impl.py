@@ -54,6 +54,7 @@ def process_order(df, months=12):
 
     # 按供应商分组计算累计金额
     processed_df = df_recent.groupby("supplier_name")["order_amount_tax_included"].sum().reset_index()
+    processed_df["order_amount_tax_included"] = processed_df["order_amount_tax_included"].round(2)
     processed_df.rename(columns={"order_amount_tax_included": f"total_order_amount"}, inplace=True)
 
     logging.info(f"处理订单数据成功。数量为: {len(processed_df)}")
@@ -95,30 +96,18 @@ def process_model(order_df, supplier_df, model_df, supplier):
         supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
     order_df_processed = process_order(order_df, months=months)
     result_df = supplier_df.merge(order_df_processed, on="supplier_name", how="left")
+    result_df.fillna({"total_order_amount": 0}, inplace=True)
     result_df["is_qualified"] = result_df.apply(lambda x: True if (
             x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and
             x["total_order_amount"] > total_order_amount) else False,
                                                 axis=1)
     logging.info(f"两方处理数据成功 {len(result_df)}")
-    result_df = result_df[[
-        "supplier_code",
-        "supplier_name",
-        "purchaser_name",
-        "legal_person",
-        "contact_person",
-        "contact_info",
-        "purchasing_department",
-        "salesman",
-        "cooperation_duration",
-        "latest_rating",
-        "is_qualified"
-    ]]
     return result_df
 
 def save_ori_file(df, path, feature, url, task_id):
+    df.to_csv(path, index=False)
     if feature:
         df = df[feature]
-    df.to_csv(path, index=False)
     if url:
         logging.info(f"网络请求 {url} ...")
         try:
@@ -163,5 +152,18 @@ if __name__ == '__main__':
     result_df = process_model(order_df, supplier_df, model_df, [])
     logging.info(f"联合处理数据成功")
 
-    save_ori_file(result_df, "model_marketing.csv", None, f"{data_endpoint}/tmpc/model/update/?type=qualified_suppliers", 'task_qualified_suppliers')
+    columns = [
+            "supplier_code",
+            "supplier_name",
+            "purchaser_name",
+            "legal_person",
+            "contact_person",
+            "contact_info",
+            "purchasing_department",
+            "salesman",
+            "cooperation_duration",
+            "latest_rating",
+            "is_qualified"
+        ]
+    save_ori_file(result_df, "model_marketing.csv", columns, f"{data_endpoint}/tmpc/model/update/?type=qualified_suppliers", 'task_qualified_suppliers')
     

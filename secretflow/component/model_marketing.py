@@ -142,6 +142,23 @@ def ss_compare_eval_fn(
     logging.info(f"输出参与方列表: {receiver_parties})")
     logging.info(f"数据参与方输出: {data_output}")
     logging.info(f"规则参与方输出: {rule_output}")
+    features = [
+            "supplier_code",
+            "supplier_name",
+            "purchaser_name",
+            "legal_person",
+            "contact_person",
+            "contact_info",
+            "purchasing_department",
+            "salesman",
+            "cooperation_duration",
+            "latest_rating",
+            "is_qualified"
+        ]
+    if not data_input_feature:
+        data_input_feature = features
+    if not rule_input_feature:
+        rule_input_feature = features
 
     input_path = {
         data_party: os.path.join(
@@ -224,6 +241,7 @@ def ss_compare_eval_fn(
 
         # 按供应商分组计算累计金额
         processed_df = df_recent.groupby("supplier_name")["order_amount_tax_included"].sum().reset_index()
+        processed_df["order_amount_tax_included"] = processed_df["order_amount_tax_included"].round(2)
         processed_df.rename(columns={"order_amount_tax_included": f"total_order_amount"}, inplace=True)
 
         logging.info(f"处理订单数据成功。数量为: {len(processed_df)}")
@@ -264,22 +282,10 @@ def ss_compare_eval_fn(
             supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
         order_df_processed = process_order(order_df, months=months)
         result_df = supplier_df.merge(order_df_processed, on="supplier_name", how="left")
+        result_df.fillna({"total_order_amount": 0}, inplace=True)
         result_df["is_qualified"] = result_df.apply(lambda x: True if (
                 x["cooperation_duration"] >= cooperation_duration and x["latest_rating"] >= latest_rating and
-                x["total_order_amount"] > total_order_amount) else False,axis=1)
-        result_df = result_df[[
-            "supplier_code",
-            "supplier_name",
-            "purchaser_name",
-            "legal_person",
-            "contact_person",
-            "contact_info",
-            "purchasing_department",
-            "salesman",
-            "cooperation_duration",
-            "latest_rating",
-            "is_qualified"
-        ]]
+                x["total_order_amount"] > total_order_amount) else False, axis=1)
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
 
@@ -328,13 +334,13 @@ def ss_compare_eval_fn(
             data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
             logging.info(f"数据方输出文件")
             save_ori_file(result_df, data_output_csv_filename, data_input_feature,
-                                         f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id)
+                          f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id)
             logging.info(f"数据方输出输出文件成功")
         if rule_party in receiver_parties:
             rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
             logging.info(f"规则方输出文件")
             save_ori_file(result_df, rule_output_csv_filename, rule_input_feature,
-                                         f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id)
+                          f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', task_id)
             logging.info(f"规则方输出文件成功")
 
         return result_df
