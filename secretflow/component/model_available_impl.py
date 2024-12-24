@@ -152,8 +152,8 @@ if __name__ == '__main__':
         handlers=[logging.StreamHandler()]  # 将日志输出到终端
     )
 
-    data_endpoint = "http://10.1.120.42:8070"
-    rule_endpoint = "http://10.1.120.42:8070"
+    data_endpoint = "http://10.1.120.42:8080"
+    rule_endpoint = "http://10.1.120.42:8080"
     logging.info(f"读取订单数据")
     order_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=order")
     logging.info(f"读取订单数据成功")

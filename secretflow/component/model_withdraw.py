@@ -246,8 +246,8 @@ def ss_compare_eval_fn(
         delivered_uninvoiced_amount_param = float(model_df.iloc[0]["delivered_uninvoiced_amount_param"])
         undelivered_amount_param = float(model_df.iloc[0]["undelivered_amount_param"])
 
-        # TODO
         if order_number:
+            logging.info(f"处理数据: {order_number}")
             order_df = order_df[order_df["order_number"].isin(order_number)]
             invoice_df = invoice_df[invoice_df["order_number"].isin(order_number)]
             receipt_df = receipt_df[receipt_df["order_number"].isin(order_number)]
@@ -265,9 +265,9 @@ def ss_compare_eval_fn(
         #                                           +(result_df['credit_amount'] - result_df['total_amount_with_tax'])*0.4).round(2)
         data = []
         for _, row in result_df.iterrows():
-            approved_financing_amount = round(row['credit_amount'] * 0.9
-                                              + (row['order_amount_tax_included'] - row['total_amount_with_tax']) * 0.7
-                                              + (row['credit_amount'] - row['total_amount_with_tax']) * 0.4, 2)
+            approved_financing_amount = round(row['credit_amount'] * financing_balance_param
+                                              + (row['order_amount_tax_included'] - row['total_amount_with_tax']) * delivered_uninvoiced_amount_param
+                                              + (row['credit_amount'] - row['total_amount_with_tax']) * undelivered_amount_param, 2)
             data.append({
                 "supplier_name": row["supplier_name"],
                 "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",

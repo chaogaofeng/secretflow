@@ -56,7 +56,8 @@ def process_model(order_df, invoice_df, receipt_df, voucher_df, model_df, order_
         raise RuntimeError("order_number is not in receipt file")
     if 'receipt_amount_tax_included' not in receipt_df.columns:
         raise RuntimeError("receipt_amount_tax_included is not in receipt file")
-    receipt_df["receipt_amount_tax_included"] = pd.to_numeric(receipt_df["receipt_amount_tax_included"], errors="coerce")
+    receipt_df["receipt_amount_tax_included"] = pd.to_numeric(receipt_df["receipt_amount_tax_included"],
+                                                              errors="coerce")
 
     if 'order_number' not in voucher_df.columns:
         raise RuntimeError("order_number is not in voucher file")
@@ -83,7 +84,8 @@ def process_model(order_df, invoice_df, receipt_df, voucher_df, model_df, order_
         voucher_df = voucher_df[voucher_df["order_number"].isin(order_number)]
     result_df = order_df.merge(invoice_df[["order_number", "total_amount_with_tax"]], on="order_number", how="left")
     result_df = result_df.merge(voucher_df[["order_number", "credit_amount"]], on="order_number", how="left")
-    result_df = result_df.merge(receipt_df[["order_number", "receipt_amount_tax_included"]], on="order_number", how="left")
+    result_df = result_df.merge(receipt_df[["order_number", "receipt_amount_tax_included"]], on="order_number",
+                                how="left")
     result_df.fillna(
         {"credit_amount": 0, "order_amount_tax_included": 0, "total_amount_with_tax": 0, "total_amount_with_tax": 0},
         inplace=True)
@@ -92,9 +94,9 @@ def process_model(order_df, invoice_df, receipt_df, voucher_df, model_df, order_
     #                                           +(result_df['credit_amount'] - result_df['total_amount_with_tax'])*0.4).round(2)
     data = []
     for _, row in result_df.iterrows():
-        approved_financing_amount = round(row['credit_amount'] * 0.9
-                                          + (row['order_amount_tax_included'] - row['total_amount_with_tax']) * 0.7
-                                          + (row['credit_amount'] - row['total_amount_with_tax']) * 0.4, 2)
+        approved_financing_amount = round(row['credit_amount'] * financing_balance_param
+                                          + (row['order_amount_tax_included'] - row['total_amount_with_tax']) * delivered_uninvoiced_amount_param
+                                          + (row['credit_amount'] - row['total_amount_with_tax']) * undelivered_amount_param, 2)
         data.append({
             "supplier_name": row["supplier_name"],
             "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
@@ -107,7 +109,8 @@ def process_model(order_df, invoice_df, receipt_df, voucher_df, model_df, order_
         })
 
     result_df = pd.DataFrame(data,
-                             columns=["supplier_name", "core_enterprise_name", "order_number", "order_amount","financing_amount", "application_date", "status", "approved_financing_amount"])
+                             columns=["supplier_name", "core_enterprise_name", "order_number", "order_amount",
+                                      "financing_amount", "application_date", "status", "approved_financing_amount"])
     logging.info(f"两方处理数据成功 {len(result_df)}")
     return result_df
 
@@ -141,9 +144,10 @@ if __name__ == '__main__':
         format="%(asctime)s - %(levelname)s - %(message)s",  # 设置日志格式
         handlers=[logging.StreamHandler()]  # 将日志输出到终端
     )
+    order_number = ['H20240103001']
 
-    data_endpoint = "http://10.1.120.42:8070"
-    rule_endpoint = "http://10.1.120.42:8070"
+    data_endpoint = "http://10.1.120.42:8080"
+    rule_endpoint = "http://10.1.120.42:8080"
     logging.info(f"读取订单数据")
     order_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=order")
     logging.info(f"读取订单数据成功")
@@ -165,7 +169,7 @@ if __name__ == '__main__':
     logging.info(f"读取模型数据成功")
 
     logging.info(f"联合处理数据")
-    result_df = process_model(order_df, invoice_df, receipt_df, voucher_df, model_df, [])
+    result_df = process_model(order_df, invoice_df, receipt_df, voucher_df, model_df, order_number)
     logging.info(f"联合处理数据成功")
 
     save_ori_file(result_df, "model_withdraw.csv", None,
