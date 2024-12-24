@@ -54,6 +54,7 @@ def process_order(df, months=12):
 
     # 按供应商名称计算平均订单金额
     avg_df_recent = df_recent.groupby("supplier_name")["order_amount_tax_included"].mean().reset_index()
+    # avg_df_recent["order_amount_tax_included"] = avg_df_recent["order_amount_tax_included"].round(2)
     avg_df_recent.rename(columns={"order_amount_tax_included": "avg_order_amount"}, inplace=True)
 
     logging.info(f"处理订单数据成功。数量为: {len(avg_df_recent)}")
