@@ -348,6 +348,7 @@ def ss_compare_eval_fn(
         result_df = process_model(order_df, supplier_df, model_df, supplier)
         logging.info(f"联合处理数据成功")
 
+        result_df["task_id"] = task_id
         if data_party in receiver_parties:
             data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
             logging.info(f"数据方输出文件")
