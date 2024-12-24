@@ -265,6 +265,7 @@ def ss_compare_eval_fn(
             months = int(model_df.iloc[0]["months"])
 
         if supplier:
+            logging.info(f"处理数据: {supplier}")
             order_df = order_df[order_df["supplier_name"].isin(supplier)]
             supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
         order_df_processed = process_order(order_df, months=months)

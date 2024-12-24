@@ -170,7 +170,7 @@ if __name__ == '__main__':
     logging.info(f"读取模型数据成功")
 
     logging.info(f"联合处理数据")
-    result_df = process_model(order_df, supplier_df, model_df, [''])
+    result_df = process_model(order_df, supplier_df, model_df, [])
     logging.info(f"联合处理数据成功")
 
     save_ori_file(result_df, "model_available.csv", None, f"{data_endpoint}/tmpc/model/update/?type=credit_limit",
