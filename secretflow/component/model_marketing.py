@@ -128,7 +128,7 @@ def ss_compare_eval_fn(
         data_output,
         rule_output
 ):
-    if len(receiver_parties) not in (0, 2):
+    if len(receiver_parties) not in (0, 1, 2):
         raise CompEvalError.party_check_failed(
             f"receiver_parties should be empty or have two parties, {receiver_parties}"
         )
