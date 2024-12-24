@@ -224,6 +224,7 @@ def ss_compare_eval_fn(
 
         # 按供应商分组计算累计金额
         processed_df = df_recent.groupby("supplier_name")["order_amount_tax_included"].sum().reset_index()
+        processed_df["order_amount_tax_included"] = processed_df["order_amount_tax_included"].round(2)
         processed_df.rename(columns={"order_amount_tax_included": f"total_order_amount"}, inplace=True)
 
         logging.info(f"处理订单数据成功。数量为: {len(processed_df)}")
@@ -264,10 +265,11 @@ def ss_compare_eval_fn(
             supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
         order_df_processed = process_order(order_df, months=months)
         result_df = supplier_df.merge(order_df_processed, on="supplier_name", how="left")
+        result_df.fillna({"total_order_amount": 0}, inplace=True)
         data = []
         for _, row in result_df.iterrows():
             # 添加供应商评分监测
-            if row["latest_rating"] < latest_rating:
+            if 0 < row["latest_rating"] < latest_rating:
                 data.append({
                     "supplier_name": row["supplier_name"],
                     "monitoring_item": "供应商评分",
@@ -278,7 +280,7 @@ def ss_compare_eval_fn(
                     # "warning_method": rule_df.iloc[0]["warning_method"] if len(rule_df) and "warning_method" in rule_df.columns else "平台消息，短信",
                     # "receiver": rule_df.iloc[0]["receiver"] if len(rule_df) and "receiver" in rule_df.columns else ""
                 })
-            elif row["total_order_amount"] < total_order_amount:
+            elif 0 < row["total_order_amount"] < total_order_amount:
                 data.append({
                     "supplier_name": row["supplier_name"],
                     "monitoring_item": f"供应商近{months}个月与核企累计订单金额",
