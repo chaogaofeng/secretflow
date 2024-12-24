@@ -270,6 +270,7 @@ def ss_compare_eval_fn(
             supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
         order_df_processed = process_order(order_df, months=months)
         result_df = supplier_df.merge(order_df_processed, on="supplier_name", how="left")
+        result_df.fillna({"avg_order_amount": 0}, inplace=True)
 
         data = []
         effective_date = pd.Timestamp.now().normalize() + pd.DateOffset(months=12)

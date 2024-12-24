@@ -98,6 +98,7 @@ def process_model(order_df, supplier_df, model_df, supplier):
         supplier_df = supplier_df[supplier_df["supplier_name"].isin(supplier)]
     order_df_processed = process_order(order_df, months=months)
     result_df = supplier_df.merge(order_df_processed, on="supplier_name", how="left")
+    result_df.fillna({"avg_order_amount": 0}, inplace=True)
 
     data = []
     effective_date = pd.Timestamp.now().normalize() + pd.DateOffset(months=12)
@@ -158,8 +159,6 @@ if __name__ == '__main__':
     logging.info(f"读取订单数据")
     order_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=order")
     logging.info(f"读取订单数据成功")
-
-    order_df["supplier_name"] = order_df["supplier_name"].replace("测试供应商01", "测试供应商001")
 
     logging.info(f"读取供应商数据")
     supplier_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=supplier")
