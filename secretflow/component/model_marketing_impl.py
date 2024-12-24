@@ -151,8 +151,6 @@ if __name__ == '__main__':
     order_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=order")
     logging.info(f"读取订单数据成功")
 
-    order_df["supplier_name"] = order_df["supplier_name"].replace("测试供应商01", "测试供应商001")
-
     logging.info(f"读取供应商数据")
     supplier_df = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=supplier")
     logging.info(f"读取供应商数据成功")
