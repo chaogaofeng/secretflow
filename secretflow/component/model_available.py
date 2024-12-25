@@ -298,7 +298,7 @@ def ss_compare_eval_fn(
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
 
-    def save_ori_file(df, path, feature, url, task_id, initiator, receiver_parties):
+    def save_ori_file(df, path, feature, url, payload={}):
         if feature:
             df = df[feature]
         logging.info(f"保存文件 {path}")
@@ -306,13 +306,7 @@ def ss_compare_eval_fn(
         if url:
             logging.info(f"网络请求 {url} ...")
             try:
-                params = json.loads(df.to_json(orient="records"))
-                payload = {
-                    'task_id': task_id,
-                    'task_initiator': initiator,
-                    'task_receiver': receiver_parties,
-                    "params": params
-                }
+                payload["params"] = json.loads(df.to_json(orient="records"))
                 logging.info(f"网络请求 {url} ... {payload}")
                 response = requests.post(url, json=payload, timeout=60)
                 if response.status_code == 200:
@@ -342,17 +336,26 @@ def ss_compare_eval_fn(
         logging.info(f"联合处理数据成功")
 
         result_df["task_id"] = task_id
+        payload = {
+            'task_id': task_id,
+            'task_initiator': initiator,
+            'task_receiver': receiver_parties,
+            'task_receiver_param': [{'node_name': data_party, 'node_recall_param': data_input_feature},
+                                    {'node_name': rule_party, 'node_recall_param': rule_input_feature}],
+            'supplier_name': supplier,
+            'order_number': [],
+        }
         if data_party in receiver_parties:
             data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
             logging.info(f"数据方输出文件")
             save_ori_file(result_df, data_output_csv_filename, data_input_feature,
-                                         f'{data_endpoint}/tmpc/model/update/?type=credit_limit', task_id, initiator, receiver_parties)
+                                         f'{data_endpoint}/tmpc/model/update/?type=credit_limit', payload)
             logging.info(f"数据方输出输出文件成功")
         if rule_party in receiver_parties:
             rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
             logging.info(f"规则方输出文件")
             save_ori_file(result_df, rule_output_csv_filename, rule_input_feature,
-                                         f'{rule_endpoint}/tmpc/model/update/?type=credit_limit', task_id, initiator, receiver_parties)
+                                         f'{rule_endpoint}/tmpc/model/update/?type=credit_limit', payload)
             logging.info(f"规则方输出文件成功")
 
         return result_df
