@@ -137,7 +137,7 @@ def ss_compare_eval_fn(
     data_party = list(data_path_info.keys())[0]
     rule_path_info = extract_data_infos(rule_input, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
-    initiator = ctx.initiator_party
+    initiator = ctx.initiator_party if ctx.initiator_party else ""
     logging.info(f"initiator: {initiator}")
     logging.info(f"任务号: {task_id}")
     logging.info(f"订单列表: {order_number}")

@@ -137,7 +137,7 @@ def ss_compare_eval_fn(
     data_party = list(data_path_info.keys())[0]
     rule_path_info = extract_data_infos(rule_input, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
-    initiator = ctx.initiator_party
+    initiator = ctx.initiator_party if ctx.initiator_party else ""
     logging.info(f"initiator: {initiator}")
     logging.info(f"数据参与方: {data_party}")
     logging.info(f"规则参与方: {rule_party}")
