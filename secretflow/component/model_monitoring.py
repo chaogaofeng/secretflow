@@ -137,6 +137,8 @@ def ss_compare_eval_fn(
     data_party = list(data_path_info.keys())[0]
     rule_path_info = extract_data_infos(rule_input, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
+    initiator = ctx.initiator_party
+    logging.info(f"initiator: {initiator}")
     logging.info(f"数据参与方: {data_party}")
     logging.info(f"规则参与方: {rule_party}")
     logging.info(f"输出参与方列表: {receiver_parties})")
@@ -307,7 +309,7 @@ def ss_compare_eval_fn(
         logging.info(f"两方处理数据成功 {len(result_df)}")
         return result_df
 
-    def save_ori_file(df, path, feature, url, task_id):
+    def save_ori_file(df, path, feature, url, task_id, initiator, receiver_parties):
         if feature:
             df = df[feature]
         df.to_csv(path, index=False)
@@ -318,6 +320,8 @@ def ss_compare_eval_fn(
                 params = json.loads(df.to_json(orient="records"))
                 payload = {
                     'task_id': task_id,
+                    'task_initiator': initiator,
+                    'task_receiver': receiver_parties,
                     "params": params
                 }
                 logging.info(f"网络请求 {url} ... {payload}")
@@ -353,13 +357,13 @@ def ss_compare_eval_fn(
             data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
             logging.info(f"数据方输出文件")
             save_ori_file(result_df, data_output_csv_filename, data_input_feature,
-                                         f'{data_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id)
+                                         f'{data_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id, initiator, receiver_parties)
             logging.info(f"数据方输出输出文件成功")
         if rule_party in receiver_parties:
             rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
             logging.info(f"规则方输出文件")
             save_ori_file(result_df, rule_output_csv_filename, rule_input_feature,
-                                         f'{rule_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id)
+                                         f'{rule_endpoint}/tmpc/model/update/?type=loan_follow_up', task_id, initiator, receiver_parties)
             logging.info(f"规则方输出文件成功")
 
         return result_df
