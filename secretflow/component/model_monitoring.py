@@ -195,7 +195,7 @@ def ss_compare_eval_fn(
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
         logging.info(f"数据方输出文件")
-        save_ori_file(ret_pyu_obj, data_output_csv_filename, data_input_feature,
+        save_ori_file(ret_df, data_output_csv_filename, data_input_feature,
                       f'{data_endpoint}/tmpc/model/update/?type=credit_limit', payload)
         logging.info(f"数据方输出输出文件成功")
 
