@@ -167,21 +167,21 @@ def ss_compare_eval_fn(
 
     data_columns = ['latest_rating', 'total_order_amount']
     param_columns = ['latest_rating', 'total_order_amount']
-    df_pyu_obj, np_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_endpoint, data_columns, supplier)
-    params_pyu_obj = rule_pyu(prepare_params)(rule_endpoint, param_columns, 'loan_follow_up')
+    df_pyu_obj, np_pyu_obj = wait(data_pyu(prepare_data_by_supplier, num_returns=2)(data_endpoint, data_columns, supplier))
+    params_pyu_obj = wait(rule_pyu(prepare_params)(rule_endpoint, param_columns, 'loan_follow_up'))
 
     from secretflow.device import SPUCompilerNumReturnsPolicy
 
     np_spu_object = np_pyu_obj.to(spu)
     params_spu_object = params_pyu_obj.to(spu)
-    ret_spu_obj = spu(
+    ret_spu_obj = wait(spu(
         process_monitoring,
         num_returns_policy=SPUCompilerNumReturnsPolicy.FROM_USER,
         user_specified_num_returns=1,
-    )(np_spu_object, params_spu_object)
+    )(np_spu_object, params_spu_object))
 
     ret_pyu_obj = ret_spu_obj.to(data_pyu)
-    ret_df = data_pyu(processed_monitoring)(df_pyu_obj, ret_pyu_obj)
+    ret_df = wait(data_pyu(processed_monitoring)(df_pyu_obj, ret_pyu_obj))
 
     payload = {
         'task_id': task_id,
@@ -195,16 +195,16 @@ def ss_compare_eval_fn(
     if data_party in receiver_parties:
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
         logging.info(f"数据方输出文件")
-        save_ori_file(ret_df, data_output_csv_filename, data_input_feature,
-                      f'{data_endpoint}/tmpc/model/update/?type=credit_limit', payload)
+        wait(save_ori_file(ret_df, data_output_csv_filename, data_input_feature,
+                      f'{data_endpoint}/tmpc/model/update/?type=credit_limit', payload))
         logging.info(f"数据方输出输出文件成功")
 
     if rule_party in receiver_parties:
         rule_output_csv_filename = os.path.join(ctx.data_dir, f"{rule_output}.csv")
         logging.info(f"规则方输出文件")
         ret_df = ret_df.to(rule_pyu)
-        save_ori_file(ret_df, rule_output_csv_filename, rule_input_feature,
-                      f'{rule_endpoint}/tmpc/model/update/?type=credit_limit', payload)
+        wait(save_ori_file(ret_df, rule_output_csv_filename, rule_input_feature,
+                      f'{rule_endpoint}/tmpc/model/update/?type=credit_limit', payload))
         logging.info(f"规则方输出文件成功")
 
     imeta = IndividualTable()
