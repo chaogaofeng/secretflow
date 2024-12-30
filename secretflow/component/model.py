@@ -315,8 +315,8 @@ def processed_monitoring(df, ret_column, months=12):
 
 
 def save_ori_file(df, path, feature=None, url=None, payload={}):
-    if 'tast_id' in payload:
-        df['tast_id'] = payload['tast_id']
+    if 'task_id' in payload:
+        df['task_id'] = payload['task_id']
     if feature:
         df = df[feature]
     logging.info(f"保存文件 {path}")
