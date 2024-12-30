@@ -213,7 +213,7 @@ def ss_compare_eval_fn(
         data_output_csv_filename = os.path.join(ctx.data_dir, f"{data_output}.csv")
         logging.info(f"数据方输出文件")
         data_pyu(save_ori_file)(ret_df, data_output_csv_filename, data_input_feature,
-                      f'{data_endpoint}/tmpc/model/update/?type=credit_limit', payload)
+                      f'{data_endpoint}/tmpc/model/update/?type=qualified_suppliers', payload)
         logging.info(f"数据方输出输出文件成功")
 
     if rule_party in receiver_parties:
@@ -221,7 +221,7 @@ def ss_compare_eval_fn(
         logging.info(f"规则方输出文件")
         ret_df = ret_df.to(rule_pyu)
         rule_pyu(save_ori_file)(ret_df, rule_output_csv_filename, rule_input_feature,
-                      f'{rule_endpoint}/tmpc/model/update/?type=credit_limit', payload)
+                      f'{rule_endpoint}/tmpc/model/update/?type=qualified_suppliers', payload)
         logging.info(f"规则方输出文件成功")
 
     imeta = IndividualTable()
