@@ -116,19 +116,19 @@ def prepare_data_by_order(endpoint, columns, order=[]):
     logging.info(f'获取供应商数据完毕。数量为: {len(df_supplier)}')
 
     logging.info(f"读取发票数据")
-    df_invoice = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=invoice")
+    df_invoice = read_endpoint(f"{endpoint}/tmpc/data/list/?type=invoice")
     if order:
         df_invoice = df_invoice[df_invoice["order_number"].isin(order)]
     logging.info(f"读取发票数据完毕。数量为: {len(df_invoice)}")
 
     logging.info(f"读取入库数据")
-    df_receipt = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=warehouse_receipt")
+    df_receipt = read_endpoint(f"{endpoint}/tmpc/data/list/?type=warehouse_receipt")
     if order:
         df_receipt = df_receipt[df_receipt["order_number"].isin(order)]
     logging.info(f"读取入库数据完毕。数量为: {len(df_receipt)}")
 
     logging.info(f"读取应付数据")
-    df_voucher = read_endpoint(f"{data_endpoint}/tmpc/data/list/?type=voucher")
+    df_voucher = read_endpoint(f"{endpoint}/tmpc/data/list/?type=voucher")
     if order:
         df_voucher = df_voucher[df_voucher["order_number"].isin(order)]
     logging.info(f"读取应付数据完毕。数量为: {len(df_voucher)}")
