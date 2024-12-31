@@ -53,15 +53,29 @@ def process_order_by_supplier(df, months=12):
 
     # 筛选最近的订单
     df_recent = df[(df["order_date"] >= start_date) & (df["order_date"] <= current_date)]
+    # 提取发生订单的月份
+    df_recent['order_month'] = df_recent['order_date'].dt.to_period('M')
 
-    # 按供应商名称计算平均订单金额
-    processed_df = df_recent.groupby("supplier_name").agg(
-        total_order_amount=("order_amount_tax_included", "sum"),
-        total_order_count=("order_amount_tax_included", "count")
+    # # 按供应商名称计算平均订单金额
+    # processed_df = df_recent.groupby("supplier_name").agg(
+    #     total_order_amount=("order_amount_tax_included", "sum"),
+    #     total_order_count=("order_amount_tax_included", "count")
+    # ).reset_index()
+    #
+    # # 计算平均订单金额
+    # processed_df["avg_order_amount"] = processed_df["total_order_amount"] / processed_df["total_order_count"]
+
+    # 按供应商名称和实际发生月份计算总金额
+    df_monthly = df_recent.groupby(["supplier_name", "order_month"]).agg(
+        monthly_order_amount=("order_amount_tax_included", "sum")
     ).reset_index()
 
-    # 计算平均订单金额
-    processed_df["avg_order_amount"] = processed_df["total_order_amount"] / processed_df["total_order_count"]
+    # 按供应商名称计算实际发生月份的平均订单金额
+    processed_df = df_monthly.groupby("supplier_name").agg(
+        total_order_amount=("monthly_order_amount", "sum"),
+        avg_order_amount=("monthly_order_amount", "mean")
+    ).reset_index()
+
     # 保留小数位两位
     processed_df["total_order_amount"] = processed_df["total_order_amount"].round(2)
     processed_df["avg_order_amount"] = processed_df["avg_order_amount"].round(2)
@@ -89,7 +103,7 @@ def prepare_data_by_supplier(endpoint, columns, supplier=[]):
 
     df_order_processed = process_order_by_supplier(df_order)
     df = df_supplier.merge(df_order_processed, on="supplier_name", how="left")
-    df.fillna({"total_order_amount": 0, "total_order_count": 0, "avg_order_amount": 0}, inplace=True)
+    df.fillna({"total_order_amount": 0, "avg_order_amount": 0}, inplace=True)
 
     logging.info(f'数据准备完毕。数量为: {len(df)}')
     new_columns = ['id']

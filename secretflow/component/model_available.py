@@ -30,6 +30,13 @@ available_comp = Component(
 )
 
 available_comp.str_attr(
+    name="initiator",
+    desc="initiator of the model.",
+    is_list=False,
+    is_optional=False,
+)
+
+available_comp.str_attr(
     name="task_id",
     desc="task id of the model.",
     is_list=False,
@@ -112,6 +119,7 @@ available_comp.io(
 def ss_compare_eval_fn(
         *,
         ctx,
+        initiator,
         task_id,
         supplier,
         data_endpoint,
@@ -133,7 +141,7 @@ def ss_compare_eval_fn(
     data_party = list(data_path_info.keys())[0]
     rule_path_info = extract_data_infos(rule_input, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
-    initiator = ctx.initiator_party if ctx.initiator_party else ""
+    # initiator = ctx.initiator_party if ctx.initiator_party else ""
     logging.info(f"任务发起方: {initiator}")
     logging.info(f"任务号: {task_id}")
     logging.info(f"供应商列表: {supplier}")
