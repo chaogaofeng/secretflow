@@ -4,6 +4,15 @@ import logging
 import requests
 
 
+def read_file(filepath):
+    logging.info(f"读取文件{filepath} ...")
+    try:
+        df = pd.read_csv(filepath, encoding="utf-8")
+    except:
+        df = pd.read_csv(filepath, encoding="gbk")
+    logging.info(f"读取文件{filepath} 成功。数量为: {len(df)} {df.head()}")
+    return df
+
 def read_endpoint(url):
     """
     读取指定 URL 的数据，并返回 DataFrame

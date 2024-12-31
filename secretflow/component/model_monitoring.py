@@ -173,6 +173,9 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
+    data_df = wait(data_pyu(read_file)(input_path[data_party]))
+    rule_df = wait(rule_pyu(read_file)(input_path[rule_party]))
+
     data_columns = ['latest_rating', 'total_order_amount']
     param_columns = ['latest_rating', 'total_order_amount']
     df_pyu_obj, np_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_endpoint, data_columns, supplier)
