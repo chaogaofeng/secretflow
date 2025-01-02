@@ -13,6 +13,7 @@ def read_file(filepath):
     logging.info(f"读取文件{filepath} 成功。数量为: {len(df)} {df.head()}")
     return df
 
+
 def read_endpoint(url):
     """
     读取指定 URL 的数据，并返回 DataFrame
@@ -220,7 +221,7 @@ def process_available(df, params):
     condition_1 = (df[:, 1] != 0) & (df[:, 1] > params['cooperation_duration'])
     condition_2 = (df[:, 2] != 0) & (df[:, 2] >= params['latest_rating'])
     result = jax.numpy.where(condition_1, 0.9,
-                             jax.numpy.where(condition_2, 0.9, 0.7)) * params['avg_payment_cycle'] * df[:, 3]
+                             jax.numpy.where(condition_2, 0.9, 0.7)) * 100 * params['avg_payment_cycle']  # * df[:, 3]
     return result
 
 
@@ -231,7 +232,7 @@ def processed_available(df, ret_column):
     data = []
     effective_date = pd.Timestamp.now().normalize() + pd.DateOffset(months=12)
     for index, row in df.iterrows():
-        financing_limit = round(ret_column[index], 2)
+        financing_limit = round(ret_column[index] / 100 * row["avg_order_amount"], 2)
         data.append({
             "supplier_name": row["supplier_name"],
             "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
@@ -268,9 +269,9 @@ def processed_withdraw(df, ret_column):
             "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
             "order_number": row["order_number"],
             "order_amount": row["order_amount_tax_included"],
-            "financing_amount": "0",
-            "application_date": effective_date.strftime('%Y-%m-%d'),
-            "status": "",
+            "financing_amount": "",
+            "application_date": "",
+            "status": "已批准",
             "approved_financing_amount": financing_limit if financing_limit > 0 else 0,
         })
 
@@ -287,10 +288,15 @@ def process_monitoring(df, params):
     #         ((df[:, 1] > 0) & (df[:, 1] < params['latest_rating'])) |
     #         ((df[:, 1] > 0) & (df[:, 2] < params['total_order_amount']))
     # )
-    condition_1 = (df[:, 1] != 0) & (df[:, 1] < params['latest_rating'])
-    condition_2 = (df[:, 2] != 0) & (df[:, 2] < params['total_order_amount'])
-    return jax.numpy.where(condition_1, 1,
-                           jax.numpy.where(condition_2, 2, 0))
+    condition_1 = (df[:, 1] < params['latest_rating'])
+    condition_2 = (df[:, 2] < params['total_order_amount'])
+    return jax.numpy.where(
+        condition_1 & condition_2,  # 两个条件同时满足
+        3,  # 返回 3
+        jax.numpy.where(condition_1, 1, jax.numpy.where(condition_2, 2, 0))  # 分别处理其他情况
+    )
+    # return jax.numpy.where(condition_1, 1,
+    #                        jax.numpy.where(condition_2, 2, 0))
 
 
 def processed_monitoring(df, ret_column, months=12):
@@ -300,14 +306,25 @@ def processed_monitoring(df, ret_column, months=12):
     data = []
     for index, row in df.iterrows():
         # 添加供应商评分监测
+        if ret_column[index] == 3:
+            data.append({
+                "supplier_name": row["supplier_name"],
+                "monitoring_item": f"供应商评分, 供应商近{months}个月与核企累计订单金额",
+                "monitoring_value": ','.join([str(row["latest_rating"]), f'{row["total_order_amount"]:,.2f}']),
+                "warning_status": True,
+                "warning_method": "平台消息，短信",
+                "receiver": "王五"  # row['contact_person'] if 'contact_person' in row else ""
+                # "warning_method": rule_df.iloc[0]["warning_method"] if len(rule_df) and "warning_method" in rule_df.columns else "平台消息，短信",
+                # "receiver": rule_df.iloc[0]["receiver"] if len(rule_df) and "receiver" in rule_df.columns else ""
+            })
         if ret_column[index] == 1:
             data.append({
                 "supplier_name": row["supplier_name"],
                 "monitoring_item": "供应商评分",
-                "monitoring_value": row["latest_rating"],
+                "monitoring_value": ','.join([str(row["latest_rating"])]),
                 "warning_status": True,
                 "warning_method": "平台消息，短信",
-                "receiver": row['contact_person'] if 'contact_person' in row else ""
+                "receiver": "王五"  # row['contact_person'] if 'contact_person' in row else ""
                 # "warning_method": rule_df.iloc[0]["warning_method"] if len(rule_df) and "warning_method" in rule_df.columns else "平台消息，短信",
                 # "receiver": rule_df.iloc[0]["receiver"] if len(rule_df) and "receiver" in rule_df.columns else ""
             })
@@ -315,10 +332,10 @@ def processed_monitoring(df, ret_column, months=12):
             data.append({
                 "supplier_name": row["supplier_name"],
                 "monitoring_item": f"供应商近{months}个月与核企累计订单金额",
-                "monitoring_value": row["latest_rating"],
+                "monitoring_value": ','.join([f'{row["total_order_amount"]:,.2f}']),
                 "warning_status": True,
                 "warning_method": "平台消息，短信",
-                "receiver": row['contact_person'] if 'contact_person' in row else ""
+                "receiver": "王五"  # row['contact_person'] if 'contact_person' in row else ""
                 # "warning_method": rule_df.iloc[0]["warning_method"] if len(rule_df) and "warning_method" in rule_df.columns else "平台消息，短信",
                 # "receiver": rule_df.iloc[0]["receiver"] if len(rule_df) and "receiver" in rule_df.columns else ""
             })
@@ -398,6 +415,7 @@ if __name__ == '__main__':
     alice, bob = sf.PYU('alice'), sf.PYU('bob')
     spu = sf.SPU(sf.utils.testing.cluster_def(['alice', 'bob']))
 
+
     def marketing():
         # marketing
         data_columns = ['cooperation_duration', 'latest_rating', 'total_order_amount']
@@ -427,6 +445,7 @@ if __name__ == '__main__':
         # np_pyu_obj = np_pyu_obj.to(bob)
         # result_df = bob(processed_marketing)(df_pyu_obj, ret_pyu_obj)
         # logging.info(f"result_df: {sf.reveal(result_df)}")
+
 
     def monitoring():
         # monitoring
@@ -460,11 +479,11 @@ if __name__ == '__main__':
         # logging.info(f"result_df: {sf.reveal(result_df)}")
 
 
-    def available():
+    def available(supplier=[]):
         # available
         data_columns = ['cooperation_duration', 'latest_rating', 'avg_order_amount']
         param_columns = ['cooperation_duration', 'latest_rating', 'avg_payment_cycle']
-        df_pyu_obj, np_pyu_obj = alice(prepare_data_by_supplier, num_returns=2)(data_endpoint, data_columns)
+        df_pyu_obj, np_pyu_obj = alice(prepare_data_by_supplier, num_returns=2)(data_endpoint, data_columns, supplier)
         params_pyu_obj = bob(prepare_params)(rule_endpoint, param_columns, 'credit_limit')
 
         from secretflow.device import SPUCompilerNumReturnsPolicy
@@ -523,7 +542,8 @@ if __name__ == '__main__':
         # bob_result_df = result_df.to(bob)
         # logging.info(f"result_df: {sf.reveal(result_df)}")
 
-    marketing()
-    monitoring()
-    available()
-    withdraw()
+
+    # marketing()
+    available(supplier=['测试供应商01'])
+    # withdraw()
+    # monitoring()
