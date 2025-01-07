@@ -31,9 +31,9 @@ gold_withdraw_comp = Component(
 gold_withdraw_comp.str_attr(
     name="order",
     desc="filter order numbers.",
-    is_list=True,
-    is_optional=True,
-    default_value=[]
+    is_list=False,
+    is_optional=False,
+    default_value=[],
 )
 
 features = [

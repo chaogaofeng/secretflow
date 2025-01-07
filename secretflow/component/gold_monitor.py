@@ -33,7 +33,7 @@ gold_monitor_comp.str_attr(
     name="supplier",
     desc="filter supplier names.",
     is_list=True,
-    is_optional=True,
+    is_optional=False,
     default_value=[],
     list_min_length_inclusive=0,
 )
