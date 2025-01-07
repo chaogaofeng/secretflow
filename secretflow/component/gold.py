@@ -81,6 +81,27 @@ def prepare_data_by_supplier(df, supplier=[], months=12):
     return np_data, np_columns
 
 
+def prepare_data_by_order(df, order=[]):
+    """
+    准备数据
+    """
+    logging.info(f"数据预处理...")
+
+    if order:
+        df = df[df["order_number"].isin(order)]
+    df["credit_amount"] = pd.to_numeric(df["credit_amount"], errors="coerce")
+    df["order_amount_tax_included"] = pd.to_numeric(df["order_amount_tax_included"], errors="coerce")
+    df["total_amount_with_tax"] = pd.to_numeric(df["total_amount_with_tax"], errors="coerce")
+    df.fillna(
+        {"credit_amount": 0, "order_amount_tax_included": 0, "total_amount_with_tax": 0, "total_amount_with_tax": 0},
+        inplace=True)
+
+    np_data = df.to_numpy()
+    np_columns = {col: i for i, col in enumerate(df.columns)}
+    logging.info(f'数据预处理完成。数量为: {len(df)}')
+    return np_data, np_columns
+
+
 def process_marketing(np_data, np_columns, params):
     """
     供应商合作时长>=3年
@@ -102,7 +123,7 @@ def processed_marketing(np_data, np_columns, result):
     return df
 
 
-def process_available(np_data, np_columns, params):
+def process_quota(np_data, np_columns, params):
     """
     供应商可融资额度=近12个月平均发票金额*X*Y
     X取值逻辑为：if 合作时长>5年 then X=0.9
@@ -116,14 +137,62 @@ def process_available(np_data, np_columns, params):
     return result
 
 
+def processed_quota(np_data, np_columns, result):
+    df = pd.DataFrame(np_data, columns=np_columns.keys())
+
+    data = []
+    effective_date = pd.Timestamp.now().normalize() + pd.DateOffset(months=12)
+    for index, row in df.iterrows():
+        financing_limit = round(result[index] / 100 * row["avg_order_amount"], 2)
+        data.append({
+            "supplier_name": row["supplier_name"],
+            "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
+            "financing_limit": financing_limit,
+            "limit_effective_date": effective_date.strftime('%Y-%m-%d'),
+            "status": True,
+            "cooperating_bank": "浙商银行"
+        })
+
+    new_df = pd.DataFrame(data, columns=["supplier_name", "core_enterprise_name", "financing_limit",
+                                         "limit_effective_date", "status", "cooperating_bank"])
+    return new_df
+
+
 def process_withdraw(np_data, np_columns, params):
     """
     可提款金额=融资合同应付余额*90%+已开票未挂账金额*70%
     融资合同号H20240103，可提款金额=572232*0.9+0*0.7+0*0.4
     """
-    result = data[:, 1] * params['financing_balance_param'] + (data[:, 2] - data[:, 3]) * params[
-        'delivered_uninvoiced_amount_param'] + (data[:, 1] - data[:, 3]) * params['undelivered_amount_param']
+    result = np_data[:, np_columns['credit_amount']] * params['financing_balance_param'] + (
+            np_data[:, np_columns['order_amount_tax_included']] - np_data[:, np_columns['total_amount_with_tax']]) * \
+             params[
+                 'delivered_uninvoiced_amount_param'] + (
+                     np_data[:, np_columns['credit_amount']] - np_data[:, np_columns['total_amount_with_tax']]) * \
+             params['undelivered_amount_param']
     return result
+
+
+def processed_withdraw(np_data, np_columns, result):
+    df = pd.DataFrame(np_data, columns=np_columns.keys())
+
+    data = []
+    effective_date = pd.Timestamp.now().normalize() + pd.DateOffset(months=12)
+    for index, row in df.iterrows():
+        financing_limit = round(result[index], 2)
+        data.append({
+            "supplier_name": row["supplier_name"],
+            "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
+            "order_number": row["order_number"],
+            "order_amount": row["order_amount_tax_included"],
+            "financing_amount": "",
+            "application_date": "",
+            "status": "已批准",
+            "approved_financing_amount": financing_limit if financing_limit > 0 else 0,
+        })
+
+    new_df = pd.DataFrame(data, columns=["supplier_name", "core_enterprise_name", "order_number", "order_amount",
+                                         "financing_amount", "application_date", "status", "approved_financing_amount"])
+    return new_df
 
 
 def process_monitoring(np_data, np_columns, params):
@@ -138,3 +207,42 @@ def process_monitoring(np_data, np_columns, params):
         condition1 & condition2, 3,
         jnp.where(condition1, 1, jnp.where(condition2, 2, 0))
     )
+
+
+def processed_monitoring(np_data, np_columns, result, months=12):
+    df = pd.DataFrame(np_data, columns=np_columns.keys())
+
+    data = []
+    for index, row in df.iterrows():
+        # 添加供应商评分监测
+        if result[index] == 3:
+            data.append({
+                "supplier_name": row["supplier_name"],
+                "monitoring_item": f"供应商评分, 供应商近{months}个月与核企累计订单金额",
+                "monitoring_value": ','.join([str(row["latest_rating"]), f'{row["total_order_amount"]:,.2f}']),
+                "warning_status": True,
+                "warning_method": "平台消息，短信",
+                "receiver": "王五"
+            })
+        if result[index] == 1:
+            data.append({
+                "supplier_name": row["supplier_name"],
+                "monitoring_item": "供应商评分",
+                "monitoring_value": ','.join([str(row["latest_rating"])]),
+                "warning_status": True,
+                "warning_method": "平台消息，短信",
+                "receiver": "王五"
+            })
+        elif result[index] == 2:
+            data.append({
+                "supplier_name": row["supplier_name"],
+                "monitoring_item": f"供应商近{months}个月与核企累计订单金额",
+                "monitoring_value": ','.join([f'{row["total_order_amount"]:,.2f}']),
+                "warning_status": True,
+                "warning_method": "平台消息，短信",
+                "receiver": "王五"
+            })
+    new_df = pd.DataFrame(data,
+                          columns=["supplier_name", "monitoring_item", "monitoring_value", "warning_status",
+                                   "warning_method", "receiver"])
+    return new_df
