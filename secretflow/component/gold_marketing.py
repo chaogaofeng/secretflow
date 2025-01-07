@@ -33,7 +33,7 @@ gold_marketing_comp.str_attr(
     name="supplier",
     desc="filter supplier names.",
     is_list=True,
-    is_optional=True,
+    is_optional=False,
     default_value=[]
 )
 
@@ -57,7 +57,9 @@ gold_marketing_comp.str_attr(
     is_list=True,
     is_optional=False,
     default_value=[],
-    allowed_values=features
+    allowed_values=features,
+    list_min_length_inclusive=0,
+    list_max_length_inclusive=len(features),
 )
 
 gold_marketing_comp.str_attr(
@@ -67,11 +69,21 @@ gold_marketing_comp.str_attr(
     is_optional=False,
     default_value=[],
     allowed_values=features,
+    list_min_length_inclusive=0,
+    list_max_length_inclusive=len(features),
 )
 
 gold_marketing_comp.io(
     io_type=IoType.INPUT,
     name="input_data",
+    desc="Individual table for party data provider",
+    types=[DistDataType.INDIVIDUAL_TABLE],
+    col_params=None,
+)
+
+gold_marketing_comp.io(
+    io_type=IoType.INPUT,
+    name="input_data_2",
     desc="Individual table for party data provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=None,
@@ -108,6 +120,7 @@ def ss_compare_eval_fn(
         output_data_key,
         output_rule_key,
         input_data,
+        input_data_2,
         input_rule,
         output_data,
         output_rule,
