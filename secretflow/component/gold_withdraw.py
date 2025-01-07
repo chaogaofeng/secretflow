@@ -23,7 +23,7 @@ from secretflow.utils import logging
 
 gold_withdraw_comp = Component(
     name="withdraw model",
-    domain="gold net",
+    domain="gold_net",
     version="0.0.1",
     desc="""calculate the actual financable amount according to the order fulfillment situation.""",
 )

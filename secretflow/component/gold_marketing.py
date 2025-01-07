@@ -23,7 +23,7 @@ from secretflow.utils import logging
 
 gold_marketing_comp = Component(
     name="marketing model",  # 营销模型
-    domain="gold net",
+    domain="gold_net",
     version="0.0.1",
     desc="""screen out the supplier data that meet the requirements for financial institutions according to the 
     cooperation situation of suppliers.""",  # 根据供应商的合作情况，帮助金融机构筛选出符合条件的供应商数据

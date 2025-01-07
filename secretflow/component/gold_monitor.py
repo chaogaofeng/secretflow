@@ -23,7 +23,7 @@ from secretflow.utils import logging
 
 gold_monitor_comp = Component(
     name="monitor model",  # 贷后监测
-    domain="gold net",
+    domain="gold_net",
     version="0.0.1",
     desc="""dynamically adjust the post-loan tracking and early warning of suppliers according to the interaction between the core enterprise and the suppliers.""",
     # 根据核心企业与供应商的互动情况，动态调整供应商的贷后跟踪预警

@@ -23,7 +23,7 @@ from secretflow.utils import logging
 
 gold_quota_comp = Component(
     name="quota model",  # 额度模型
-    domain="gold net",
+    domain="gold_net",
     version="0.0.1",
     desc="""calculate the financable amount of the current suppliers based on the procurement data of the core enterprise and the suppliers.""",
     # 根据核心企业和供应商的采购数据，计算出当前供应商的可以融资的金额
