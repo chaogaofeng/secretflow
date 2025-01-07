@@ -33,7 +33,7 @@ gold_withdraw_comp.str_attr(
     desc="filter order numbers.",
     is_list=False,
     is_optional=False,
-    default_value=[],
+    default_value='',
 )
 
 features = [
