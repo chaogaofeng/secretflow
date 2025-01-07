@@ -21,27 +21,33 @@ from secretflow.spec.v1.data_pb2 import (
 )
 from secretflow.utils import logging
 
-gold_monitor_comp = Component(
-    name="quota model",
+gold_quota_comp = Component(
+    name="quota model",  # 额度模型
     domain="gold net",
     version="0.0.1",
     desc="""calculate the financable amount of the current suppliers based on the procurement data of the core enterprise and the suppliers.""",
+    # 根据核心企业和供应商的采购数据，计算出当前供应商的可以融资的金额
 )
 
-gold_monitor_comp.str_attr(
+gold_quota_comp.str_attr(
     name="supplier",
     desc="filter supplier names.",
     is_list=True,
-    is_optional=True,
-    default_value=[]
+    is_optional=False,
+    default_value=[],
+    list_min_length_inclusive=1,
 )
 
 features = [
-    "supplier_name", "core_enterprise_name", "financing_limit",
-    "limit_effective_date", "status", "cooperating_bank"
+    "supplier_name",
+    "core_enterprise_name",
+    "financing_limit",
+    "limit_effective_date",
+    "status",
+    "cooperating_bank"
 ]
 
-gold_monitor_comp.str_attr(
+gold_quota_comp.str_attr(
     name="output_data_key",
     desc="column(s) used to output for party data provider.",
     is_list=True,
@@ -50,7 +56,7 @@ gold_monitor_comp.str_attr(
     allowed_values=features
 )
 
-gold_monitor_comp.str_attr(
+gold_quota_comp.str_attr(
     name="output_rule_key",
     desc="column(s) used to output for party rule provider.",
     is_list=True,
@@ -59,15 +65,24 @@ gold_monitor_comp.str_attr(
     allowed_values=features,
 )
 
-gold_monitor_comp.io(
+gold_quota_comp.io(
     io_type=IoType.INPUT,
-    name="input_data",
+    name="input_data_order",
     desc="Individual table for party data provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=None,
 )
 
-gold_monitor_comp.io(
+gold_quota_comp.io(
+    io_type=IoType.INPUT,
+    name="input_data_supplier",
+    desc="Individual table for party data provider",
+    types=[DistDataType.INDIVIDUAL_TABLE],
+    col_params=None,
+)
+
+
+gold_quota_comp.io(
     io_type=IoType.INPUT,
     name="input_rule",
     desc="Individual table for party rule provider",
@@ -75,14 +90,14 @@ gold_monitor_comp.io(
     col_params=None,
 )
 
-gold_monitor_comp.io(
+gold_quota_comp.io(
     io_type=IoType.OUTPUT,
     name="output_data",
     desc="Output for data",
     types=[DistDataType.INDIVIDUAL_TABLE],
 )
 
-gold_monitor_comp.io(
+gold_quota_comp.io(
     io_type=IoType.OUTPUT,
     name="output_rule",
     desc="Output for data",
@@ -90,20 +105,27 @@ gold_monitor_comp.io(
 )
 
 
-@gold_monitor_comp.eval_fn
+@gold_quota_comp.eval_fn
 def ss_compare_eval_fn(
         *,
         ctx,
         supplier,
         output_data_key,
         output_rule_key,
-        input_data,
+        input_data_order,
+        input_data_supplier,
         input_rule,
         output_data,
         output_rule,
 ):
-    data_path_info = extract_data_infos(input_data, load_ids=True, load_features=True, load_labels=True)
-    data_party = list(data_path_info.keys())[0]
+    data_order_path_info = extract_data_infos(input_data_order, load_ids=True, load_features=True, load_labels=True)
+    data_order_party = list(data_order_path_info.keys())[0]
+    data_supplier_path_info = extract_data_infos(input_data_supplier, load_ids=True, load_features=True,
+                                                 load_labels=True)
+    data_supplier_party = list(data_supplier_path_info.keys())[0]
+    if data_order_party != data_supplier_party:
+        raise CompEvalError("data party and rule party must be same.")
+    data_party = data_order_party
     rule_path_info = extract_data_infos(input_rule, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
     logging.info(f"筛选供应商列表: {supplier})")
@@ -115,17 +137,21 @@ def ss_compare_eval_fn(
     logging.info(f"规则方输出字段列表: {output_rule_key}")
 
     input_path = {
-        data_party: os.path.join(
-            ctx.data_dir, data_path_info[data_party].uri
+        'order': os.path.join(
+            ctx.data_dir, data_order_path_info[data_order_party].uri
+        ),
+        'supplier': os.path.join(
+            ctx.data_dir, data_supplier_path_info[data_supplier_party].uri
         ),
         rule_party: os.path.join(ctx.data_dir, rule_path_info[rule_party].uri),
     }
-    uri = {
-        data_party: data_path_info[data_party].uri,
-        rule_party: rule_path_info[rule_party].uri,
-    }
-    with ctx.tracer.trace_io():
-        download_files(ctx, uri, input_path, overwrite=False)
+    # uri = {
+    #     data_order_party: data_order_path_info[data_order_party].uri,
+    #     data_supplier_party: data_supplier_path_info[data_supplier_party].uri,
+    #     rule_party: rule_path_info[rule_party].uri,
+    # }
+    # with ctx.tracer.trace_io():
+    #     download_files(ctx, uri, input_path, overwrite=False)
 
     # get spu config from ctx
     if ctx.spu_configs is None or len(ctx.spu_configs) == 0:
@@ -138,12 +164,13 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
-    data_df = data_pyu(read_file)(input_path[data_party],
-                                  ['order_date', 'order_amount_tax_included', 'supplier_name', 'purchaser_name'])
+    data_order_df = data_pyu(read_file)(input_path['order'],
+                                        ['order_date', 'order_amount_tax_included', 'supplier_name'])
+    data_supplier_df = data_pyu(read_file)(input_path['supplier'], ['supplier_name', 'purchaser_name'])
     rule_df = rule_pyu(read_file)(input_path[rule_party],
                                   ['cooperation_duration', 'latest_rating', 'avg_payment_cycle'])
 
-    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_df, supplier=supplier,
+    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_order_df, data_supplier_df, supplier=supplier,
                                                                                            months=12)
     params_pyu_obj = rule_pyu(prepare_params)(rule_df)
 
@@ -153,13 +180,13 @@ def ss_compare_eval_fn(
     np_column_spu_obj = np_column_pyu_obj.to(spu)
     params_spu_object = params_pyu_obj.to(spu)
     result_spu_obj = spu(
-        process_monitoring,
+        process_quota,
         num_returns_policy=SPUCompilerNumReturnsPolicy.FROM_USER,
         user_specified_num_returns=1,
     )(np_data_spu_object, np_column_spu_obj, params_spu_object)
 
     result_pyu_obj = result_spu_obj.to(data_pyu)
-    result_df = data_pyu(processed_monitoring)(np_data_pyu_obj, np_column_pyu_obj, result_pyu_obj)
+    result_df = data_pyu(processed_quota)(np_data_pyu_obj, np_column_pyu_obj, result_pyu_obj)
 
     output_data_path = os.path.join(ctx.data_dir, f"{output_data}.csv")
     logging.info(f"数据方输出文件")

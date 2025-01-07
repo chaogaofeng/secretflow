@@ -22,11 +22,11 @@ from secretflow.spec.v1.data_pb2 import (
 from secretflow.utils import logging
 
 gold_marketing_comp = Component(
-    name="marketing model",
+    name="marketing model",  # 营销模型
     domain="gold net",
     version="0.0.1",
     desc="""screen out the supplier data that meet the requirements for financial institutions according to the 
-    cooperation situation of suppliers.""",
+    cooperation situation of suppliers.""",  # 根据供应商的合作情况，帮助金融机构筛选出符合条件的供应商数据
 )
 
 gold_marketing_comp.str_attr(
@@ -34,22 +34,23 @@ gold_marketing_comp.str_attr(
     desc="filter supplier names.",
     is_list=True,
     is_optional=False,
-    default_value=[]
+    default_value=[],
+    list_min_length_inclusive=0,
 )
 
 features = [
-        "supplier_code",
-        "supplier_name",
-        "purchaser_name",
-        "legal_person",
-        "contact_person",
-        "contact_info",
-        "purchasing_department",
-        "salesman",
-        "cooperation_duration",
-        "latest_rating",
-        "is_qualified"
-    ]
+    "supplier_code",
+    "supplier_name",
+    "purchaser_name",
+    "legal_person",
+    "contact_person",
+    "contact_info",
+    "purchasing_department",
+    "salesman",
+    "cooperation_duration",
+    "latest_rating",
+    "is_qualified"
+]
 
 gold_marketing_comp.str_attr(
     name="output_data_key",
@@ -90,14 +91,6 @@ gold_marketing_comp.io(
 )
 
 gold_marketing_comp.io(
-    io_type=IoType.INPUT,
-    name="input_rule",
-    desc="Individual table for party rule provider",
-    types=[DistDataType.INDIVIDUAL_TABLE],
-    col_params=None,
-)
-
-gold_marketing_comp.io(
     io_type=IoType.OUTPUT,
     name="output_data",
     desc="Output for data",
@@ -127,7 +120,8 @@ def ss_compare_eval_fn(
 ):
     data_order_path_info = extract_data_infos(input_data_order, load_ids=True, load_features=True, load_labels=True)
     data_order_party = list(data_order_path_info.keys())[0]
-    data_supplier_path_info = extract_data_infos(input_data_supplier, load_ids=True, load_features=True, load_labels=True)
+    data_supplier_path_info = extract_data_infos(input_data_supplier, load_ids=True, load_features=True,
+                                                 load_labels=True)
     data_supplier_party = list(data_supplier_path_info.keys())[0]
     if data_order_party != data_supplier_party:
         raise CompEvalError("data party and rule party must be same.")
@@ -170,11 +164,15 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
-    data_order_df = data_pyu(read_file)(input_path['order'], features.extend(['order_date', 'order_amount_tax_included', 'supplier_name']))
-    data_supplier_df = data_pyu(read_file)(input_path['supplier'], features.extend(['supplier_name']))
-    rule_df = rule_pyu(read_file)(input_path[rule_party], ['cooperation_duration', 'latest_rating', 'total_order_amount'])
+    data_order_df = data_pyu(read_file)(input_path['order'],
+                                        ['order_date', 'order_amount_tax_included', 'supplier_name'])
+    data_supplier_df = data_pyu(read_file)(input_path['supplier'], features)
+    rule_df = rule_pyu(read_file)(input_path[rule_party],
+                                  ['cooperation_duration', 'latest_rating', 'total_order_amount'])
 
-    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_order_df, data_supplier_df, supplier=supplier, months=12)
+    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_order_df,
+                                                                                           data_supplier_df,
+                                                                                           supplier=supplier, months=12)
     params_pyu_obj = rule_pyu(prepare_params)(rule_df)
 
     from secretflow.device import SPUCompilerNumReturnsPolicy

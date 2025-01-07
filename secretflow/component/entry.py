@@ -23,10 +23,16 @@ from secretflow.version import build_message
 
 from .core.entry import comp_eval as core_comp_eval
 from .gold_marketing import gold_marketing_comp
+from .gold_quota import gold_quota_comp
+from .gold_withdraw import gold_withdraw_comp
+from .gold_monitor import gold_monitor_comp
 
 ALL_COMPONENTS = [
     psi_comp,
     gold_marketing_comp,
+    gold_quota_comp,
+    gold_withdraw_comp,
+    gold_monitor_comp,
 ]
 
 COMP_LIST_NAME = "secretflow"
