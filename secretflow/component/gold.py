@@ -43,14 +43,16 @@ def prepare_params(df):
     return params
 
 
-def prepare_data_by_supplier(df, supplier=[], months=12):
+def prepare_data_by_supplier(data_order_df, data_supplier_df, supplier=[], months=12):
     """
     准备数据
     """
     logging.info(f"数据预处理...")
     # 筛选供应商
     if supplier:
-        df = df[df["supplier_name"].isin(supplier)]
+        data_order_df = data_order_df[data_order_df["supplier_name"].isin(supplier)]
+        data_supplier_df = data_supplier_df[data_supplier_df["supplier_name"].isin(supplier)]
+    df = data_supplier_df.merge(data_order_df, on="supplier_name", how="left")
     # 转换日期列
     df["order_date"] = pd.to_datetime(df["order_date"])
     # 获取当前日期，并计算开始日期

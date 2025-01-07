@@ -75,7 +75,7 @@ gold_marketing_comp.str_attr(
 
 gold_marketing_comp.io(
     io_type=IoType.INPUT,
-    name="input_data",
+    name="input_data_order",
     desc="Individual table for party data provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=None,
@@ -83,7 +83,7 @@ gold_marketing_comp.io(
 
 gold_marketing_comp.io(
     io_type=IoType.INPUT,
-    name="input_data_2",
+    name="input_data_supplier",
     desc="Individual table for party data provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=None,
@@ -119,14 +119,19 @@ def ss_compare_eval_fn(
         supplier,
         output_data_key,
         output_rule_key,
-        input_data,
-        input_data_2,
+        input_data_order,
+        input_data_supplier,
         input_rule,
         output_data,
         output_rule,
 ):
-    data_path_info = extract_data_infos(input_data, load_ids=True, load_features=True, load_labels=True)
-    data_party = list(data_path_info.keys())[0]
+    data_order_path_info = extract_data_infos(input_data_order, load_ids=True, load_features=True, load_labels=True)
+    data_order_party = list(data_order_path_info.keys())[0]
+    data_supplier_path_info = extract_data_infos(input_data_supplier, load_ids=True, load_features=True, load_labels=True)
+    data_supplier_party = list(data_supplier_path_info.keys())[0]
+    if data_order_party != data_supplier_party:
+        raise CompEvalError("data party and rule party must be same.")
+    data_party = data_order_party
     rule_path_info = extract_data_infos(input_rule, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
     logging.info(f"筛选供应商列表: {supplier})")
@@ -138,17 +143,21 @@ def ss_compare_eval_fn(
     logging.info(f"规则方输出字段列表: {output_rule_key}")
 
     input_path = {
-        data_party: os.path.join(
-            ctx.data_dir, data_path_info[data_party].uri
+        'order': os.path.join(
+            ctx.data_dir, data_order_path_info[data_order_party].uri
+        ),
+        'supplier': os.path.join(
+            ctx.data_dir, data_supplier_path_info[data_supplier_party].uri
         ),
         rule_party: os.path.join(ctx.data_dir, rule_path_info[rule_party].uri),
     }
-    uri = {
-        data_party: data_path_info[data_party].uri,
-        rule_party: rule_path_info[rule_party].uri,
-    }
-    with ctx.tracer.trace_io():
-        download_files(ctx, uri, input_path, overwrite=False)
+    # uri = {
+    #     data_order_party: data_order_path_info[data_order_party].uri,
+    #     data_supplier_party: data_supplier_path_info[data_supplier_party].uri,
+    #     rule_party: rule_path_info[rule_party].uri,
+    # }
+    # with ctx.tracer.trace_io():
+    #     download_files(ctx, uri, input_path, overwrite=False)
 
     # get spu config from ctx
     if ctx.spu_configs is None or len(ctx.spu_configs) == 0:
@@ -161,10 +170,11 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
-    data_df = data_pyu(read_file)(input_path[data_party], features.extend(['order_date', 'order_amount_tax_included']))
+    data_order_df = data_pyu(read_file)(input_path['order'], features.extend(['order_date', 'order_amount_tax_included', 'supplier_name']))
+    data_supplier_df = data_pyu(read_file)(input_path['supplier'], features.extend(['supplier_name']))
     rule_df = rule_pyu(read_file)(input_path[rule_party], ['cooperation_duration', 'latest_rating', 'total_order_amount'])
 
-    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_df, supplier=supplier, months=12)
+    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_order_df, data_supplier_df, supplier=supplier, months=12)
     params_pyu_obj = rule_pyu(prepare_params)(rule_df)
 
     from secretflow.device import SPUCompilerNumReturnsPolicy
