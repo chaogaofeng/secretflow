@@ -210,7 +210,7 @@ def ss_compare_eval_fn(
     output_data_db = DistData(
         name=output_data,
         type=str(DistDataType.INDIVIDUAL_TABLE),
-        data_refs=[DistData.DataRef(uri=output_data_path, party=str(data_party), format="csv")],
+        data_refs=[DistData.DataRef(uri=output_data, party=str(data_party), format="csv")],
     )
     output_data_meta = IndividualTable(
         schema=TableSchema(
@@ -224,7 +224,7 @@ def ss_compare_eval_fn(
     output_rule_db = DistData(
         name=output_rule,
         type=str(DistDataType.INDIVIDUAL_TABLE),
-        data_refs=[DistData.DataRef(uri=output_rule_path, party=str(rule_party), format="csv")],
+        data_refs=[DistData.DataRef(uri=output_rule, party=str(rule_party), format="csv")],
     )
     output_rule_meta = IndividualTable(
         schema=TableSchema(
