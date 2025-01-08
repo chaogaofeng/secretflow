@@ -240,8 +240,8 @@ def ss_compare_eval_fn(
 
     output_rule_path = os.path.join(ctx.data_dir, f"{output_rule}")
     logging.info(f"规则方输出文件")
-    result_df = result_df.to(data_pyu)
-    output_rule_types = data_pyu(save_file)(output_rule_path, result_df, output_rule_key)
+    result_df = result_df.to(rule_pyu)
+    output_rule_types = rule_pyu(save_file)(output_rule_path, result_df, output_rule_key)
     logging.info(f"规则方输出文件成功")
 
     logging.info("组件输出结果")
