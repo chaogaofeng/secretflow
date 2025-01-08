@@ -169,7 +169,7 @@ def ss_compare_eval_fn(
 
     data_order_df = data_pyu(read_file)(input_path['order'],
                                         ['order_date', 'order_amount_tax_included', 'supplier_name'])
-    data_supplier_df = data_pyu(read_file)(input_path['supplier'], ['supplier_name', 'purchaser_name'])
+    data_supplier_df = data_pyu(read_file)(input_path['supplier'], ['supplier_name', 'purchaser_name', 'cooperation_duration', 'latest_rating'])
     rule_df = rule_pyu(read_file)(input_path[rule_party],
                                   ['cooperation_duration', 'latest_rating', 'avg_payment_cycle'])
 
