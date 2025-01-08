@@ -91,6 +91,14 @@ gold_marketing_comp.io(
 )
 
 gold_marketing_comp.io(
+    io_type=IoType.INPUT,
+    name="input_rule",
+    desc="Individual table for party rule provider",
+    types=[DistDataType.INDIVIDUAL_TABLE],
+    col_params=None,
+)
+
+gold_marketing_comp.io(
     io_type=IoType.OUTPUT,
     name="output_data",
     desc="Output for data",

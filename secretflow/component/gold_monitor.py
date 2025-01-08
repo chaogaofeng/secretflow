@@ -53,7 +53,9 @@ gold_monitor_comp.str_attr(
     is_list=True,
     is_optional=False,
     default_value=[],
-    allowed_values=features
+    allowed_values=features,
+    list_min_length_inclusive=0,
+    list_max_length_inclusive=len(features),
 )
 
 gold_monitor_comp.str_attr(
@@ -63,6 +65,8 @@ gold_monitor_comp.str_attr(
     is_optional=False,
     default_value=[],
     allowed_values=features,
+    list_min_length_inclusive=0,
+    list_max_length_inclusive=len(features),
 )
 
 gold_monitor_comp.io(

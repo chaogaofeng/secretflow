@@ -32,10 +32,10 @@ gold_quota_comp = Component(
 gold_quota_comp.str_attr(
     name="supplier",
     desc="filter supplier names.",
-    is_list=False,
+    is_list=True,
     is_optional=False,
-    default_value='',
-    # list_min_length_inclusive=1,
+    default_value=[],
+    list_min_length_inclusive=1,
 )
 
 features = [
@@ -53,7 +53,9 @@ gold_quota_comp.str_attr(
     is_list=True,
     is_optional=False,
     default_value=[],
-    allowed_values=features
+    allowed_values=features,
+    list_min_length_inclusive=0,
+    list_max_length_inclusive=len(features),
 )
 
 gold_quota_comp.str_attr(
@@ -63,6 +65,8 @@ gold_quota_comp.str_attr(
     is_optional=False,
     default_value=[],
     allowed_values=features,
+    list_min_length_inclusive=0,
+    list_max_length_inclusive=len(features),
 )
 
 gold_quota_comp.io(
