@@ -239,4 +239,4 @@ def ss_compare_eval_fn(
     )
     output_rule_db.meta.Pack(output_rule_meta)
 
-    return {"output_data": output_data_db, "output_alice": output_rule_db}
+    return {"output_data": output_data_db, "output_rule": output_rule_db}
