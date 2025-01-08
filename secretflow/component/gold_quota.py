@@ -19,7 +19,6 @@ from secretflow.spec.v1.data_pb2 import (
     StorageConfig,
     TableSchema,
 )
-from secretflow.utils import logging
 
 gold_quota_comp = Component(
     name="quota model",  # 额度模型

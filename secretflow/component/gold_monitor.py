@@ -19,7 +19,6 @@ from secretflow.spec.v1.data_pb2 import (
     StorageConfig,
     TableSchema,
 )
-from secretflow.utils import logging
 
 gold_monitor_comp = Component(
     name="monitor model",  # 贷后监测

@@ -19,7 +19,6 @@ from secretflow.spec.v1.data_pb2 import (
     StorageConfig,
     TableSchema,
 )
-from secretflow.utils import logging
 
 gold_marketing_comp = Component(
     name="marketing model",  # 营销模型
