@@ -199,15 +199,18 @@ def ss_compare_eval_fn(
 
     output_rule_path = os.path.join(ctx.data_dir, f"{output_rule}.csv")
     logging.info(f"规则方输出文件")
+    result_df = result_df.to(data_pyu)
     output_rule_types = data_pyu(save_file)(output_rule_path, result_df, output_rule_key)
     logging.info(f"规则方输出文件成功")
 
     logging.info("组件输出结果")
+    output_data_types = sf.reveal(output_data_types)
+    output_rule_types = sf.reveal(output_rule_types)
     # generate DistData
     output_data_db = DistData(
         name=output_data,
         type=str(DistDataType.INDIVIDUAL_TABLE),
-        data_refs=[DistData.DataRef(uri=output_data_path, party=data_party, format="csv")],
+        data_refs=[DistData.DataRef(uri=output_data_path, party=str(data_party), format="csv")],
     )
     output_data_meta = IndividualTable(
         schema=TableSchema(
@@ -221,7 +224,7 @@ def ss_compare_eval_fn(
     output_rule_db = DistData(
         name=output_rule,
         type=str(DistDataType.INDIVIDUAL_TABLE),
-        data_refs=[DistData.DataRef(uri=output_rule_path, party=rule_party, format="csv")],
+        data_refs=[DistData.DataRef(uri=output_rule_path, party=str(rule_party), format="csv")],
     )
     output_rule_meta = IndividualTable(
         schema=TableSchema(
