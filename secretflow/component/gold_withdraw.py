@@ -45,7 +45,7 @@ gold_withdraw_comp.str_attr(
     desc="column(s) used to output for party data provider.",
     is_list=True,
     is_optional=False,
-    default_value=[],
+    default_value=features,
     allowed_values=features
 )
 
@@ -54,7 +54,7 @@ gold_withdraw_comp.str_attr(
     desc="column(s) used to output for party rule provider.",
     is_list=True,
     is_optional=False,
-    default_value=[],
+    default_value=features,
     allowed_values=features,
 )
 
