@@ -19,7 +19,6 @@ from secretflow.spec.v1.data_pb2 import (
     StorageConfig,
     TableSchema,
 )
-from secretflow.utils import logging
 
 gold_withdraw_comp = Component(
     name="withdraw model",
@@ -61,7 +60,39 @@ gold_withdraw_comp.str_attr(
 
 gold_withdraw_comp.io(
     io_type=IoType.INPUT,
-    name="input_data",
+    name="input_data_order",
+    desc="Individual table for party data provider",
+    types=[DistDataType.INDIVIDUAL_TABLE],
+    col_params=None,
+)
+
+# gold_withdraw_comp.io(
+#     io_type=IoType.INPUT,
+#     name="input_data_supplier",
+#     desc="Individual table for party data provider",
+#     types=[DistDataType.INDIVIDUAL_TABLE],
+#     col_params=None,
+# )
+
+gold_withdraw_comp.io(
+    io_type=IoType.INPUT,
+    name="input_data_receipt",
+    desc="Individual table for party data provider",
+    types=[DistDataType.INDIVIDUAL_TABLE],
+    col_params=None,
+)
+
+gold_withdraw_comp.io(
+    io_type=IoType.INPUT,
+    name="input_data_invoice",
+    desc="Individual table for party data provider",
+    types=[DistDataType.INDIVIDUAL_TABLE],
+    col_params=None,
+)
+
+gold_withdraw_comp.io(
+    io_type=IoType.INPUT,
+    name="input_data_voucher",
     desc="Individual table for party data provider",
     types=[DistDataType.INDIVIDUAL_TABLE],
     col_params=None,
@@ -97,13 +128,36 @@ def ss_compare_eval_fn(
         order,
         output_data_key,
         output_rule_key,
-        input_data,
+        input_data_order,
+        # input_data_supplier,
+        input_data_receipt,
+        input_data_invoice,
+        input_data_voucher,
         input_rule,
         output_data,
         output_rule,
 ):
-    data_path_info = extract_data_infos(input_data, load_ids=True, load_features=True, load_labels=True)
-    data_party = list(data_path_info.keys())[0]
+    data_order_path_info = extract_data_infos(input_data_order, load_ids=True, load_features=True, load_labels=True)
+    data_order_party = list(data_order_path_info.keys())[0]
+    # data_supplier_path_info = extract_data_infos(input_data_supplier, load_ids=True, load_features=True,
+    #                                              load_labels=True)
+    # data_supplier_party = list(data_supplier_path_info.keys())[0]
+    data_receipt_path_info = extract_data_infos(input_data_receipt, load_ids=True, load_features=True, load_labels=True)
+    data_receipt_party = list(data_receipt_path_info.keys())[0]
+    data_invoice_path_info = extract_data_infos(input_data_invoice, load_ids=True, load_features=True,
+                                                load_labels=True)
+    data_invoice_party = list(data_invoice_path_info.keys())[0]
+    data_voucher_path_info = extract_data_infos(input_data_voucher, load_ids=True, load_features=True, load_labels=True)
+    data_voucher_party = list(data_voucher_path_info.keys())[0]
+    # if data_order_party != data_supplier_party:
+    #     raise CompEvalError("order and supplier must be same party.")
+    if data_order_party != data_receipt_party:
+        raise CompEvalError("order and receipt must be same party.")
+    if data_order_party != data_invoice_party:
+        raise CompEvalError("order and invoice must be same party.")
+    if data_order_party != data_voucher_party:
+        raise CompEvalError("order and voucher must be same party.")
+    data_party = data_order_party
     rule_path_info = extract_data_infos(input_rule, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
     logging.info(f"筛选订单列表: {order})")
@@ -115,17 +169,29 @@ def ss_compare_eval_fn(
     logging.info(f"规则方输出字段列表: {output_rule_key}")
 
     input_path = {
-        data_party: os.path.join(
-            ctx.data_dir, data_path_info[data_party].uri
+        'order': os.path.join(
+            ctx.data_dir, data_order_path_info[data_order_party].uri
+        ),
+        # 'supplier': os.path.join(
+        #     ctx.data_dir, data_supplier_path_info[data_supplier_party].uri
+        # ),
+        'receipt': os.path.join(
+            ctx.data_dir, data_receipt_path_info[data_order_party].uri
+        ),
+        'invoice': os.path.join(
+            ctx.data_dir, data_invoice_path_info[data_supplier_party].uri
+        ),
+        'voucher': os.path.join(
+            ctx.data_dir, data_voucher_path_info[data_order_party].uri
         ),
         rule_party: os.path.join(ctx.data_dir, rule_path_info[rule_party].uri),
     }
-    uri = {
-        data_party: data_path_info[data_party].uri,
-        rule_party: rule_path_info[rule_party].uri,
-    }
-    with ctx.tracer.trace_io():
-        download_files(ctx, uri, input_path, overwrite=False)
+    # uri = {
+    #     data_party: data_path_info[data_party].uri,
+    #     rule_party: rule_path_info[rule_party].uri,
+    # }
+    # with ctx.tracer.trace_io():
+    #     download_files(ctx, uri, input_path, overwrite=False)
 
     # get spu config from ctx
     if ctx.spu_configs is None or len(ctx.spu_configs) == 0:
@@ -138,15 +204,19 @@ def ss_compare_eval_fn(
     data_pyu = PYU(data_party)
     rule_pyu = PYU(rule_party)
 
-    data_df = data_pyu(read_file)(input_path[data_party],
-                                  ['supplier_name', 'purchaser_name', 'order_number', 'order_amount_tax_included',
-                                   'credit_amount', 'total_amount_with_tax'])
+    data_order_df = data_pyu(read_file)(input_path['order'],
+                                        ['purchaser_name', 'supplier_name', 'order_number', 'total_amount_with_tax'])
+    # data_supplier_df = data_pyu(read_file)(input_path['supplier'], ['supplier_name'])
+    data_receipt_df = data_pyu(read_file)(input_path['receipt'], ["order_number", "receipt_amount_tax_included"])
+    data_invoice_df = data_pyu(read_file)(input_path['invoice'], ["order_number", "total_amount_with_tax"])
+    data_voucher_df = data_pyu(read_file)(input_path['voucher'], ["order_number", "credit_amount"])
     rule_df = rule_pyu(read_file)(input_path[rule_party],
                                   ['financing_balance_param', 'delivered_uninvoiced_amount_param',
                                    'undelivered_amount_param'])
 
-    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_df, order=order,
-                                                                                           months=12)
+    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_order, num_returns=2)(
+        data_order_df, data_receipt_df, data_invoice_df, data_voucher_df,
+        order=[order] if order and isinstance(order, str) else order)
     params_pyu_obj = rule_pyu(prepare_params)(rule_df)
 
     from secretflow.device import SPUCompilerNumReturnsPolicy
