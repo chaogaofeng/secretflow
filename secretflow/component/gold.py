@@ -148,8 +148,7 @@ def process_quota(np_data, np_columns, params):
     return result
 
 
-def processed_quota(np_data, np_columns, result):
-    df = pd.DataFrame(np_data, columns=np_columns.keys())
+def processed_quota(df, result):
 
     data = []
     effective_date = pd.Timestamp.now().normalize() + pd.DateOffset(months=12)
@@ -220,9 +219,7 @@ def process_monitoring(np_data, np_columns, params):
     )
 
 
-def processed_monitoring(np_data, np_columns, result, months=12):
-    df = pd.DataFrame(np_data, columns=np_columns.keys())
-
+def processed_monitoring(df, result, months=12):
     data = []
     for index, row in df.iterrows():
         # 添加供应商评分监测

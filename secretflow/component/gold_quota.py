@@ -173,8 +173,9 @@ def ss_compare_eval_fn(
     rule_df = rule_pyu(read_file)(input_path[rule_party],
                                   ['cooperation_duration', 'latest_rating', 'avg_payment_cycle'])
 
-    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(
-        data_order_df, data_supplier_df, supplier=[supplier] if isinstance(supplier, str) else supplier if supplier else [],months=12)
+    df_pyu_obj, np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(
+        data_order_df, data_supplier_df, columns=['cooperation_duration', 'latest_rating', 'avg_order_amount'],
+        supplier=[supplier] if isinstance(supplier, str) else supplier if supplier else [],months=12)
     params_pyu_obj = rule_pyu(prepare_params)(rule_df)
 
     from secretflow.device import SPUCompilerNumReturnsPolicy
@@ -189,7 +190,7 @@ def ss_compare_eval_fn(
     )(np_data_spu_object, np_column_spu_obj, params_spu_object)
 
     result_pyu_obj = result_spu_obj.to(data_pyu)
-    result_df = data_pyu(processed_quota)(np_data_pyu_obj, np_column_pyu_obj, result_pyu_obj)
+    result_df = data_pyu(processed_quota)(df_pyu_obj, result_pyu_obj)
 
     output_data_path = os.path.join(ctx.data_dir, f"{output_data}.csv")
     logging.info(f"数据方输出文件")
