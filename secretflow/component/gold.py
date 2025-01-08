@@ -172,7 +172,7 @@ def processed_quota(df, result):
             "core_enterprise_name": row['purchaser_name'] if row['purchaser_name'] else "",
             "financing_limit": financing_limit,
             "limit_effective_date": effective_date.strftime('%Y-%m-%d'),
-            "status": True,
+            "status": '生效',
             "cooperating_bank": "浙商银行"
         })
 
@@ -239,7 +239,7 @@ def processed_monitoring(df, result, months=12):
                 "supplier_name": row["supplier_name"],
                 "monitoring_item": f"供应商评分, 供应商近{months}个月与核企累计订单金额",
                 "monitoring_value": ','.join([str(row["latest_rating"]), f'{row["total_order_amount"]:,.2f}']),
-                "warning_status": True,
+                "warning_status": '是',
                 "warning_method": "平台消息，短信",
                 "receiver": "王五"
             })
@@ -248,7 +248,7 @@ def processed_monitoring(df, result, months=12):
                 "supplier_name": row["supplier_name"],
                 "monitoring_item": "供应商评分",
                 "monitoring_value": ','.join([str(row["latest_rating"])]),
-                "warning_status": True,
+                "warning_status": '是',
                 "warning_method": "平台消息，短信",
                 "receiver": "王五"
             })
@@ -257,7 +257,7 @@ def processed_monitoring(df, result, months=12):
                 "supplier_name": row["supplier_name"],
                 "monitoring_item": f"供应商近{months}个月与核企累计订单金额",
                 "monitoring_value": ','.join([f'{row["total_order_amount"]:,.2f}']),
-                "warning_status": True,
+                "warning_status": '是',
                 "warning_method": "平台消息，短信",
                 "receiver": "王五"
             })
