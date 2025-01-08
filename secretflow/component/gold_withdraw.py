@@ -205,7 +205,7 @@ def ss_compare_eval_fn(
     rule_pyu = PYU(rule_party)
 
     data_order_df = data_pyu(read_file)(input_path['order'],
-                                        ['purchaser_name', 'supplier_name', 'order_number', 'total_amount_with_tax'])
+                                        ['purchaser_name', 'supplier_name', 'order_number'])
     # data_supplier_df = data_pyu(read_file)(input_path['supplier'], ['supplier_name'])
     data_receipt_df = data_pyu(read_file)(input_path['receipt'], ["order_number", "receipt_amount_tax_included"])
     data_invoice_df = data_pyu(read_file)(input_path['invoice'], ["order_number", "total_amount_with_tax"])
