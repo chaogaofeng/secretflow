@@ -126,7 +126,7 @@ def ss_compare_eval_fn(
                                                  load_labels=True)
     data_supplier_party = list(data_supplier_path_info.keys())[0]
     if data_order_party != data_supplier_party:
-        raise CompEvalError("data party and rule party must be same.")
+        raise CompEvalError("order and supplier must be same party.")
     data_party = data_order_party
     rule_path_info = extract_data_infos(input_rule, load_ids=True, load_features=True, load_labels=True)
     rule_party = list(rule_path_info.keys())[0]
@@ -173,7 +173,8 @@ def ss_compare_eval_fn(
     data_supplier_df = data_pyu(read_file)(input_path['supplier'], ['supplier_name', 'latest_rating'])
     rule_df = rule_pyu(read_file)(input_path[rule_party], ['total_order_amount', 'latest_rating'])
 
-    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(data_order_df, data_supplier_df, supplier=supplier,
+    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(
+        data_order_df, data_supplier_df, supplier=[supplier] if isinstance(supplier, str) else supplier if supplier else [],
                                                                                            months=12)
     params_pyu_obj = rule_pyu(prepare_params)(rule_df)
 
