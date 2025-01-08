@@ -1,6 +1,5 @@
 import pandas as pd
-
-from secretflow.utils import logging
+import logging
 from jax import numpy as jnp
 
 
@@ -83,14 +82,21 @@ def prepare_data_by_supplier(data_order_df, data_supplier_df, supplier=[], month
     return np_data, np_columns
 
 
-def prepare_data_by_order(df, order=[]):
+def prepare_data_by_order(data_order_df, data_receipt_df, data_invoice_df, data_voucher_df, order=[]):
     """
     准备数据
     """
     logging.info(f"数据预处理...")
 
     if order:
-        df = df[df["order_number"].isin(order)]
+        data_order_df = data_order_df[data_order_df["order_number"].isin(order)]
+        data_receipt_df = data_receipt_df[data_receipt_df["order_number"].isin(order)]
+        data_invoice_df = data_invoice_df[data_invoice_df["order_number"].isin(order)]
+        data_voucher_df = data_voucher_df[data_voucher_df["order_number"].isin(order)]
+
+    df = data_order_df.merge(data_invoice_df[["order_number", "total_amount_with_tax"]], on="order_number", how="left")
+    df = df.merge(data_receipt_df[["order_number", "receipt_amount_tax_included"]], on="order_number", how="left")
+    df = df.merge(data_voucher_df[["order_number", "credit_amount"]], on="order_number", how="left")
     df["credit_amount"] = pd.to_numeric(df["credit_amount"], errors="coerce")
     df["order_amount_tax_included"] = pd.to_numeric(df["order_amount_tax_included"], errors="coerce")
     df["total_amount_with_tax"] = pd.to_numeric(df["total_amount_with_tax"], errors="coerce")
