@@ -26,7 +26,7 @@ def save_file(path, df, columns=None):
     df.to_csv(path, index=False)
     logging.info(f"保存文件完成 {path}。")
     id_types = [
-        "str" if df[col].dtype == "object" else "float"
+        "str" # if df[col].dtype == "float64" else "float"
         for col in columns
     ]
     return id_types

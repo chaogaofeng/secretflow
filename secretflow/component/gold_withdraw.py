@@ -176,13 +176,13 @@ def ss_compare_eval_fn(
         #     ctx.data_dir, data_supplier_path_info[data_supplier_party].uri
         # ),
         'receipt': os.path.join(
-            ctx.data_dir, data_receipt_path_info[data_order_party].uri
+            ctx.data_dir, data_receipt_path_info[data_receipt_party].uri
         ),
         'invoice': os.path.join(
-            ctx.data_dir, data_invoice_path_info[data_supplier_party].uri
+            ctx.data_dir, data_invoice_path_info[data_invoice_party].uri
         ),
         'voucher': os.path.join(
-            ctx.data_dir, data_voucher_path_info[data_order_party].uri
+            ctx.data_dir, data_voucher_path_info[data_voucher_party].uri
         ),
         rule_party: os.path.join(ctx.data_dir, rule_path_info[rule_party].uri),
     }
