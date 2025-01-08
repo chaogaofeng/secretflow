@@ -1,6 +1,7 @@
 import pandas as pd
 import logging
 from jax import numpy as jnp
+from secretflow.error_system import CompEvalError
 
 
 def read_file(filepath, columns=None):
@@ -12,10 +13,10 @@ def read_file(filepath, columns=None):
     logging.info(f"读取文件完成 {filepath}。数量为: {len(df)}")
 
     if columns:
-        from secretflow.error_system import CompEvalError
-        for column in columns:
-            if column not in df.columns:
-                raise CompEvalError(f"{column} 不在数据列中")
+        missing_columns = [col for col in columns if col not in df.columns]
+        if missing_columns:
+            raise CompEvalError(f"以下列在数据中缺失: {missing_columns}")
+
     return df
 
 
@@ -51,17 +52,25 @@ def prepare_data_by_supplier(data_order_df, data_supplier_df, columns, supplier=
     if supplier:
         data_order_df = data_order_df[data_order_df["supplier_name"].isin(supplier)]
         data_supplier_df = data_supplier_df[data_supplier_df["supplier_name"].isin(supplier)]
-    df = data_supplier_df.merge(data_order_df, on="supplier_name", how="left")
+
+    # 确保关键列存在
+    required_columns = ["supplier_name", "order_date", "order_amount_tax_included"]
+    missing_columns = [col for col in required_columns if col not in data_order_df.columns]
+    if missing_columns:
+        raise CompEvalError(f"以下列在数据中缺失: {missing_columns}")
+
     # 转换日期列
-    df["order_date"] = pd.to_datetime(df["order_date"])
-
-    df["order_amount_tax_included"] = pd.to_numeric(df["order_amount_tax_included"], errors="coerce")
-
+    data_order_df["order_date"] = pd.to_datetime(data_order_df["order_date"])
+    data_order_df["order_amount_tax_included"] = pd.to_numeric(data_order_df["order_amount_tax_included"],
+                                                               errors="coerce")
+    # 去除无效数据
+    data_order_df = data_order_df.dropna(subset=["order_date", "order_amount_tax_included"])
     # 获取当前日期，并计算开始日期
     current_date = pd.Timestamp.now().normalize()
     start_date = current_date - pd.DateOffset(months=months)
     # 筛选最近的订单
-    df_recent = df[(df["order_date"] >= start_date) & (df["order_date"] <= current_date)]
+    df_recent = data_order_df[
+        (data_order_df["order_date"] >= start_date) & (data_order_df["order_date"] <= current_date)]
     # 提取发生订单的月份
     df_recent['order_month'] = df_recent['order_date'].dt.to_period('M')
     # 确保金额列是数值类型
@@ -78,6 +87,9 @@ def prepare_data_by_supplier(data_order_df, data_supplier_df, columns, supplier=
     # 保留小数位两位
     processed_df["total_order_amount"] = processed_df["total_order_amount"].round(2)
     processed_df["avg_order_amount"] = processed_df["avg_order_amount"].round(2)
+
+    df = data_supplier_df.merge(processed_df, on="supplier_name", how="left")
+    df.fillna({"total_order_amount": 0, "avg_order_amount": 0}, inplace=True)
 
     new_df = df[columns]
     np_data = new_df.to_numpy()
@@ -127,11 +139,12 @@ def process_marketing(np_data, np_columns, params):
     # 合并条件
     condition = condition1 & condition2 & condition3
 
-    return jnp.where(condition, '是', '否')
+    return jnp.where(condition, True, False)
 
 
 def processed_marketing(df, result):
-    df["is_qualified"] = result
+    import numpy as np
+    df["is_qualified"] = np.where(result, "是", "否")
     return df
 
 
@@ -150,7 +163,6 @@ def process_quota(np_data, np_columns, params):
 
 
 def processed_quota(df, result):
-
     data = []
     effective_date = pd.Timestamp.now().normalize() + pd.DateOffset(months=12)
     for index, row in df.iterrows():
@@ -184,7 +196,6 @@ def process_withdraw(np_data, np_columns, params):
 
 
 def processed_withdraw(df, result):
-
     data = []
     effective_date = pd.Timestamp.now().normalize() + pd.DateOffset(months=12)
     for index, row in df.iterrows():
@@ -254,3 +265,70 @@ def processed_monitoring(df, result, months=12):
                           columns=["supplier_name", "monitoring_item", "monitoring_value", "warning_status",
                                    "warning_method", "receiver"])
     return new_df
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,  # 设置日志级别
+        format="%(asctime)s - %(levelname)s - %(message)s",  # 设置日志格式
+        handlers=[logging.StreamHandler()]  # 将日志输出到终端
+    )
+    import secretflow as sf
+
+    # sf.shutdown()
+    sf.init(parties=['alice', 'bob', 'carol'], address='local')
+    alice, bob = sf.PYU('alice'), sf.PYU('bob')
+    spu = sf.SPU(sf.utils.testing.cluster_def(['alice', 'bob']))
+
+    data_dir = '/root/workspace/secretflow2/secretflow/component/poc/'
+    data_order_df = alice(read_file)(data_dir + '订单表.csv',
+                                     ['order_date', 'order_amount_tax_included', 'supplier_name'])
+    data_supplier_df = alice(read_file)(data_dir + '供应商信息表.csv', [
+        "supplier_code",
+        "supplier_name",
+        "purchaser_name",
+        "legal_person",
+        "contact_person",
+        "contact_info",
+        "purchasing_department",
+        "salesman",
+        "cooperation_duration",
+        "latest_rating",
+        "is_qualified"
+    ])
+    # data_receipt_df = alice(read_file)(data_dir + '入库表.csv')
+    # data_invoice_df = alice(read_file)(data_dir + '发票表.csv')
+    # data_voucher_df = alice(read_file)(data_dir + '应收应付.csv')
+
+    market_df = bob(read_file)(data_dir + '营销模型.csv')
+    # quota_df = bob(read_file(data_dir + '额度模型.csv'))
+    # monitor_df = bob(read_file(data_dir + '贷后检测模型.csv'))
+
+    df_pyu_obj, np_data_pyu_obj, np_column_pyu_obj = alice(prepare_data_by_supplier, num_returns=3)(data_order_df,
+                                                                                                    data_supplier_df,
+                                                                                                    [
+                                                                                                        'cooperation_duration',
+                                                                                                        'latest_rating',
+                                                                                                        'total_order_amount'])
+    params_pyu_obj = bob(prepare_params, num_returns=1)(market_df)
+
+    from secretflow.device import SPUCompilerNumReturnsPolicy
+
+    np_data_spu_object = np_data_pyu_obj.to(spu)
+    np_column_spu_obj = np_column_pyu_obj.to(spu)
+    params_spu_object = params_pyu_obj.to(spu)
+    ret_spu_obj = spu(
+        process_marketing,
+        num_returns_policy=SPUCompilerNumReturnsPolicy.FROM_USER,
+        user_specified_num_returns=1,
+    )(np_data_pyu_obj, np_column_spu_obj, params_spu_object)
+
+    ret_pyu_obj = ret_spu_obj.to(alice)
+    result_df = alice(processed_marketing)(df_pyu_obj, ret_pyu_obj)
+    logging.info(f"market result_df: {sf.reveal(result_df)}")
+
+    # ret_pyu_obj = ret_spu_obj.to(bob)
+    # df_pyu_obj = df_pyu_obj.to(bob)
+    # np_pyu_obj = np_pyu_obj.to(bob)
+    # result_df = bob(processed_marketing)(df_pyu_obj, ret_pyu_obj)
+    # logging.info(f"result_df: {sf.reveal(result_df)}")
