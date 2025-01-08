@@ -34,7 +34,7 @@ gold_quota_comp.str_attr(
     desc="filter supplier names.",
     is_list=False,
     is_optional=False,
-    # default_value='',
+    default_value='',
     # list_min_length_inclusive=1,
 )
 
