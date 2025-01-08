@@ -42,7 +42,7 @@ def prepare_params(df):
     return params
 
 
-def prepare_data_by_supplier(data_order_df, data_supplier_df, supplier=[], months=12):
+def prepare_data_by_supplier(data_order_df, data_supplier_df, columns, supplier=[], months=12):
     """
     准备数据
     """
@@ -54,6 +54,9 @@ def prepare_data_by_supplier(data_order_df, data_supplier_df, supplier=[], month
     df = data_supplier_df.merge(data_order_df, on="supplier_name", how="left")
     # 转换日期列
     df["order_date"] = pd.to_datetime(df["order_date"])
+
+    df["order_amount_tax_included"] = pd.to_numeric(df["order_amount_tax_included"], errors="coerce")
+
     # 获取当前日期，并计算开始日期
     current_date = pd.Timestamp.now().normalize()
     start_date = current_date - pd.DateOffset(months=months)
@@ -62,7 +65,6 @@ def prepare_data_by_supplier(data_order_df, data_supplier_df, supplier=[], month
     # 提取发生订单的月份
     df_recent['order_month'] = df_recent['order_date'].dt.to_period('M')
     # 确保金额列是数值类型
-    df["order_amount_tax_included"] = pd.to_numeric(df["order_amount_tax_included"], errors="coerce")
     df_monthly = df_recent.groupby(["supplier_name", "order_month"]).agg(
         monthly_order_amount=("order_amount_tax_included", "sum")
     ).reset_index()
@@ -76,10 +78,12 @@ def prepare_data_by_supplier(data_order_df, data_supplier_df, supplier=[], month
     # 保留小数位两位
     processed_df["total_order_amount"] = processed_df["total_order_amount"].round(2)
     processed_df["avg_order_amount"] = processed_df["avg_order_amount"].round(2)
-    np_data = df.to_numpy()
-    np_columns = {col: i for i, col in enumerate(df.columns)}
+
+    new_df = df[columns]
+    np_data = new_df.to_numpy()
+    np_columns = {col: i for i, col in enumerate(new_df.columns)}
     logging.info(f'数据预处理完成。数量为: {len(df)}')
-    return np_data, np_columns
+    return df, np_data, np_columns
 
 
 def prepare_data_by_order(data_order_df, data_receipt_df, data_invoice_df, data_voucher_df, order=[]):
@@ -125,8 +129,7 @@ def process_marketing(np_data, np_columns, params):
     return jnp.where(condition, '是', '否')
 
 
-def processed_marketing(np_data, np_columns, result):
-    df = pd.DataFrame(np_data, columns=np_columns.keys())
+def processed_marketing(df, result):
     df["is_qualified"] = result
     return df
 
