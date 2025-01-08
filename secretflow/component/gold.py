@@ -86,7 +86,7 @@ def prepare_data_by_supplier(data_order_df, data_supplier_df, columns, supplier=
     return df, np_data, np_columns
 
 
-def prepare_data_by_order(data_order_df, data_receipt_df, data_invoice_df, data_voucher_df, order=[]):
+def prepare_data_by_order(data_order_df, data_receipt_df, data_invoice_df, data_voucher_df, columns, order=[]):
     """
     准备数据
     """
@@ -108,10 +108,11 @@ def prepare_data_by_order(data_order_df, data_receipt_df, data_invoice_df, data_
         {"credit_amount": 0, "order_amount_tax_included": 0, "total_amount_with_tax": 0, "total_amount_with_tax": 0},
         inplace=True)
 
-    np_data = df.to_numpy()
-    np_columns = {col: i for i, col in enumerate(df.columns)}
+    new_df = df[columns]
+    np_data = new_df.to_numpy()
+    np_columns = {col: i for i, col in enumerate(new_df.columns)}
     logging.info(f'数据预处理完成。数量为: {len(df)}')
-    return np_data, np_columns
+    return df, np_data, np_columns
 
 
 def process_marketing(np_data, np_columns, params):
@@ -182,8 +183,7 @@ def process_withdraw(np_data, np_columns, params):
     return result
 
 
-def processed_withdraw(np_data, np_columns, result):
-    df = pd.DataFrame(np_data, columns=np_columns.keys())
+def processed_withdraw(df, result):
 
     data = []
     effective_date = pd.Timestamp.now().normalize() + pd.DateOffset(months=12)

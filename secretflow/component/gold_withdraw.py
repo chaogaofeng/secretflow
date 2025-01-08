@@ -214,8 +214,8 @@ def ss_compare_eval_fn(
                                   ['financing_balance_param', 'delivered_uninvoiced_amount_param',
                                    'undelivered_amount_param'])
 
-    np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_order, num_returns=2)(
-        data_order_df, data_receipt_df, data_invoice_df, data_voucher_df,
+    df_pyu_obj, np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_order, num_returns=2)(
+        data_order_df, data_receipt_df, data_invoice_df, data_voucher_df, columns=['credit_amount', 'order_amount_tax_included', 'total_amount_with_tax'],
         order=[order] if order and isinstance(order, str) else order)
     params_pyu_obj = rule_pyu(prepare_params)(rule_df)
 
@@ -231,7 +231,7 @@ def ss_compare_eval_fn(
     )(np_data_spu_object, np_column_spu_obj, params_spu_object)
 
     result_pyu_obj = result_spu_obj.to(data_pyu)
-    result_df = data_pyu(processed_withdraw)(np_data_pyu_obj, np_column_pyu_obj, result_pyu_obj)
+    result_df = data_pyu(processed_withdraw)(df_pyu_obj, result_pyu_obj)
 
     output_data_path = os.path.join(ctx.data_dir, f"{output_data}.csv")
     logging.info(f"数据方输出文件")
