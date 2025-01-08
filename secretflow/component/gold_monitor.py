@@ -190,12 +190,12 @@ def ss_compare_eval_fn(
     result_pyu_obj = result_spu_obj.to(data_pyu)
     result_df = data_pyu(processed_monitoring)(df_pyu_obj, result_pyu_obj)
 
-    output_data_path = os.path.join(ctx.data_dir, f"{output_data}.csv")
+    output_data_path = os.path.join(ctx.data_dir, f"{output_data}")
     logging.info(f"数据方输出文件")
     output_data_types = data_pyu(save_file)(output_data_path, result_df, output_data_key)
     logging.info(f"数据方输出输出文件成功")
 
-    output_rule_path = os.path.join(ctx.data_dir, f"{output_rule}.csv")
+    output_rule_path = os.path.join(ctx.data_dir, f"{output_rule}")
     logging.info(f"规则方输出文件")
     result_df = result_df.to(data_pyu)
     output_rule_types = data_pyu(save_file)(output_rule_path, result_df, output_rule_key)
