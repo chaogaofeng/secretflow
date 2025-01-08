@@ -173,7 +173,7 @@ def ss_compare_eval_fn(
     rule_df = rule_pyu(read_file)(input_path[rule_party],
                                   ['cooperation_duration', 'latest_rating', 'avg_payment_cycle'])
 
-    df_pyu_obj, np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=2)(
+    df_pyu_obj, np_data_pyu_obj, np_column_pyu_obj = data_pyu(prepare_data_by_supplier, num_returns=3)(
         data_order_df, data_supplier_df, columns=['cooperation_duration', 'latest_rating', 'avg_order_amount'],
         supplier=[supplier] if isinstance(supplier, str) else supplier if supplier else [],months=12)
     params_pyu_obj = rule_pyu(prepare_params)(rule_df)
