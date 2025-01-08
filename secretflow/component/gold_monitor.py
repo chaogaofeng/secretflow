@@ -1,5 +1,5 @@
 import os
-from secretflow import PYU, SPU
+from secretflow import PYU, SPU, reveal
 from secretflow.component.component import (
     Component,
     IoType,
@@ -202,8 +202,8 @@ def ss_compare_eval_fn(
     logging.info(f"规则方输出文件成功")
 
     logging.info("组件输出结果")
-    output_data_types = sf.reveal(output_data_types)
-    output_rule_types = sf.reveal(output_rule_types)
+    output_data_types = reveal(output_data_types)
+    output_rule_types = reveal(output_rule_types)
     # generate DistData
     output_data_db = DistData(
         name=output_data,
