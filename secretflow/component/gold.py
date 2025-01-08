@@ -282,35 +282,30 @@ if __name__ == '__main__':
 
     data_dir = '/root/workspace/secretflow2/secretflow/component/poc/'
     data_order_df = alice(read_file)(data_dir + '订单表.csv',
-                                     ['order_date', 'order_amount_tax_included', 'supplier_name'])
-    data_supplier_df = alice(read_file)(data_dir + '供应商信息表.csv', [
-        "supplier_code",
-        "supplier_name",
-        "purchaser_name",
-        "legal_person",
-        "contact_person",
-        "contact_info",
-        "purchasing_department",
-        "salesman",
-        "cooperation_duration",
-        "latest_rating",
-        "is_qualified"
-    ])
-    # data_receipt_df = alice(read_file)(data_dir + '入库表.csv')
-    # data_invoice_df = alice(read_file)(data_dir + '发票表.csv')
-    # data_voucher_df = alice(read_file)(data_dir + '应收应付.csv')
+                                     ['purchaser_name', 'supplier_name', 'order_number'])
+    data_supplier_df = alice(read_file)(data_dir + '供应商信息表.csv',
+                                        ['supplier_name', 'purchaser_name', 'cooperation_duration', 'latest_rating'])
+    data_receipt_df = alice(read_file)(data_dir + '入库表.csv', ["order_number", "receipt_amount_tax_included"])
+    data_invoice_df = alice(read_file)(data_dir + '发票表.csv', ["order_number", "total_amount_with_tax"])
+    data_voucher_df = alice(read_file)(data_dir + '应收应付.csv', ["order_number", "credit_amount"])
 
-    market_df = bob(read_file)(data_dir + '营销模型.csv')
-    # quota_df = bob(read_file(data_dir + '额度模型.csv'))
-    # monitor_df = bob(read_file(data_dir + '贷后检测模型.csv'))
+    # model_df = bob(read_file)(data_dir + '营销模型.csv')
+    # model_df = bob(read_file)(data_dir + '额度模型.csv', ['cooperation_duration', 'latest_rating', 'avg_payment_cycle'])
+    # model_df = bob(read_file)(data_dir + '贷后检测模型.csv')
+    model_df = bob(read_file)(data_dir + '提款模型.csv',
+                              ['financing_balance_param', 'delivered_uninvoiced_amount_param',
+                               'undelivered_amount_param'])
 
-    df_pyu_obj, np_data_pyu_obj, np_column_pyu_obj = alice(prepare_data_by_supplier, num_returns=3)(data_order_df,
-                                                                                                    data_supplier_df,
-                                                                                                    [
-                                                                                                        'cooperation_duration',
-                                                                                                        'latest_rating',
-                                                                                                        'total_order_amount'])
-    params_pyu_obj = bob(prepare_params, num_returns=1)(market_df)
+    df_pyu_obj, np_data_pyu_obj, np_column_pyu_obj = alice(prepare_data_by_order, num_returns=3)(data_order_df,
+                                                                                                 data_receipt_df,
+                                                                                                 data_invoice_df,
+                                                                                                 data_voucher_df,
+                                                                                                 [
+                                                                                                     'credit_amount',
+                                                                                                     'order_amount_tax_included',
+                                                                                                     'total_amount_with_tax'],
+                                                                                                 ['H20240103001'])
+    params_pyu_obj = bob(prepare_params)(model_df)
 
     from secretflow.device import SPUCompilerNumReturnsPolicy
 
@@ -318,17 +313,73 @@ if __name__ == '__main__':
     np_column_spu_obj = np_column_pyu_obj.to(spu)
     params_spu_object = params_pyu_obj.to(spu)
     ret_spu_obj = spu(
-        process_marketing,
+        process_withdraw,
         num_returns_policy=SPUCompilerNumReturnsPolicy.FROM_USER,
         user_specified_num_returns=1,
     )(np_data_pyu_obj, np_column_spu_obj, params_spu_object)
 
     ret_pyu_obj = ret_spu_obj.to(alice)
-    result_df = alice(processed_marketing)(df_pyu_obj, ret_pyu_obj)
+    result_df = alice(processed_withdraw)(df_pyu_obj, ret_pyu_obj)
     logging.info(f"market result_df: {sf.reveal(result_df)}")
 
-    # ret_pyu_obj = ret_spu_obj.to(bob)
-    # df_pyu_obj = df_pyu_obj.to(bob)
-    # np_pyu_obj = np_pyu_obj.to(bob)
-    # result_df = bob(processed_marketing)(df_pyu_obj, ret_pyu_obj)
-    # logging.info(f"result_df: {sf.reveal(result_df)}")
+    features = [
+        "supplier_name", "core_enterprise_name", "order_number", "order_amount",
+        "financing_amount", "application_date", "status", "approved_financing_amount"
+    ]
+
+    output_data = "withdraw_result"
+    output_data_path = f"{alice}.csv"
+    logging.info(f"数据方输出文件")
+    output_data_types = alice(save_file)(output_data_path, result_df, features)
+    logging.info(f"数据方输出输出文件成功")
+
+    output_rule_path = f"{bob}.csv"
+    logging.info(f"规则方输出文件")
+    result_df = result_df.to(bob)
+    output_rule_types = bob(save_file)(output_rule_path, result_df, features)
+    logging.info(f"规则方输出文件成功")
+
+    logging.info("组件输出结果")
+    from secretflow.spec.v1.data_pb2 import (
+        DistData,
+        IndividualTable,
+        StorageConfig,
+        TableSchema,
+    )
+    from secretflow.component.data_utils import (
+        DistDataType,
+        extract_data_infos,
+    )
+
+    # generate DistData
+    output_data_db = DistData(
+        name="ddd",
+        type=str(DistDataType.INDIVIDUAL_TABLE),
+        data_refs=[DistData.DataRef(uri=output_data_path, party=str(alice), format="csv")],
+    )
+
+    output_data_types = sf.reveal(output_data_types)
+    output_rule_types = sf.reveal(output_rule_types)
+    print(output_rule_types)
+    output_data_meta = IndividualTable(
+        schema=TableSchema(
+            id_types=output_data_types,
+            ids=features,
+        ),
+        line_count=-1,
+    )
+    output_data_db.meta.Pack(output_data_meta)
+
+    output_rule_db = DistData(
+        name='ddd',
+        type=str(DistDataType.INDIVIDUAL_TABLE),
+        data_refs=[DistData.DataRef(uri=output_rule_path, party=str(bob), format="csv")],
+    )
+    output_rule_meta = IndividualTable(
+        schema=TableSchema(
+            id_types=output_rule_types,
+            ids=features,
+        ),
+        line_count=-1,
+    )
+    output_rule_db.meta.Pack(output_rule_meta)
